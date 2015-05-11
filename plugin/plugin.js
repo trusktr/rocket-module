@@ -8,35 +8,38 @@ var webpack = Npm.require('webpack')
 var _       = Npm.require('lodash')
 
 /**
- * Get the current app's absolute path.
- * TODO: Change this: walk up the tree until detecting the .meteor folder.
- * TODO: Is there an official way to get the path to the current app?
+ * Get the current app's path.
+ * See: https://github.com/meteor-velocity/meteor-internals/blob/e33c84d768af087f94a16820107c97bfc6c8a587/tools/files.js#L72
+ *
+ * @return {string} The path to the application we are in.
  */
 function appDir() {
-    var dir
-
-    // If we're in a package inside a module in the app's packages directory.
-    if (path.resolve(process.cwd(), '..').match(/packages$/)) {
-        dir = path.resolve(process.cwd(), '../..')
-    }
-
-    // If we're in the app's packages directory.
-    else if (process.cwd().match(/packages$/)) {
-        dir = path.resolve(process.cwd(), '..')
-    }
-
-    // If we're in the app directory.
-    else {
-        dir = process.cwd()
-    }
-    return dir
+    return VelocityMeteorInternals.files.findAppDir()
 }
 
 /**
- * Get the current app's packages dir.
+ * Get the current app's packages directory.
  */
 function packagesDir() {
     return path.resolve(appDir(), 'packages')
+}
+
+/*
+ * This is how to get to the packages folder of an app from the
+ * node_modules folder of a locally installed package.
+ *
+ * The reason I'm using this is because Npm.require looks relative to
+ * .npm/plugin/node_modules or .npm/package/node_modules inside a package, so
+ * we have to provide the backsteps to get to the package directory in order to
+ * `Npm.require` devs' codes relative to their packages since the normal
+ * `require` isn't available.
+ *
+ * TODO: How do we get to the packages directory of an app if we're not in a
+ * local package node_modules folder? It might depend on the 'official' way of
+ * getting the app path if it exists.
+ */
+function packagesDirRelativeToNodeModules() {
+    return '../../../../..'
 }
 
 /**
@@ -44,7 +47,17 @@ function packagesDir() {
  * @param {CompileStep} compileStep The given CompileStep.
  */
 function packageDir(compileStep) {
+    console.log(' %%%%%%%%%%%%%%%%%%%%%%%% ', VelocityMeteorInternals.files.findPackageDir())
     return path.resolve(compileStep.fullInputPath.replace(compileStep.inputPath, ''))
+}
+
+function dependentsOf(package) {
+    return []
+}
+
+function fileName(fullPath) {
+    var parts = fullPath.split(path.sep)
+    return parts[parts.length-1]
 }
 
 /**
@@ -54,7 +67,6 @@ function packageDir(compileStep) {
  */
 function CompileManager(extension) {
     this.extension = extension
-    this.count = 0
     this.init()
 }
 _.assign(CompileManager.prototype, {
@@ -87,17 +99,18 @@ _.assign(CompileManager.prototype, {
     },
 
     sourceHandler: function sourceHandler(compileStep) {
-        console.log('\n ### ', ++this.count)
-        console.log('\n')
-        var package = packageDir(compileStep);
+        var modulesLink, modulesSource, output, files, fileMatch, tmpLocation,
+            appId, pathToConfig, config, webpackCompiler, webpackResult,
+            currentPackage
 
         /*
          * Link the node_modules directory so modules can be resolved.
          * TODO: Work entirely out of the /tmp folder instead of writing in the
-         * package.
+         * currentPackage.
          */
-        var modulesLink = path.resolve(package, 'node_modules')
-        var modulesSource = path.resolve(package, '.npm/package/node_modules')
+        currentPackage = packageDir(compileStep)
+        modulesLink = path.resolve(currentPackage, 'node_modules')
+        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
         if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
         fs.symlinkSync(modulesSource, modulesLink)
 
@@ -105,50 +118,42 @@ _.assign(CompileManager.prototype, {
          * Choose a temporary output location that doesn't exist yet.
          * TODO: Get the app id (from .meteor/.id) a legitimate way.
          */
-        var output, files, fileMatch
-        var tmpLocation = '/tmp'
-        var appId = fs.readFileSync(
+        tmpLocation = '/tmp'
+        appId = fs.readFileSync(
             path.resolve(appDir(), '.meteor', '.id')
         ).toString().trim().split('\n').slice(-1)[0]
         do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
         while ( fs.existsSync(output) )
         output = path.resolve(output, compileStep.pathForSourceMap)
 
-        // Extend the default Webpack configuration with the user's
-        // configuration. Npm.require loads modules relative to
-        // packages/<package-name>/.npm/plugin/<plugin-name>/node_modules so we need
-        // to go back 5 dirs into the packagesDir then go into the target packageDir.
-        var relativePathToConfig = path.join('../../../../..', package.replace(packagesDir(), ''), 'module.config.js')
-        console.log(' -- path to config file: ', relativePathToConfig)
-        var config = fs.existsSync(path.resolve(package, 'module.config.js')) ? Npm.require(relativePathToConfig) : {}
+        /*
+         * Extend the default Webpack configuration with the user's
+         * configuration and get a Webpack compiler. Npm.require loads modules
+         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
+         * so we need to go back 5 dirs into the packagesDir then go into the
+         * target packageDir.
+         */
+        pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+            fileName(currentPackage), 'module.config.js')
+        console.log(' -- path to config file: ', pathToConfig)
+        config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+            Npm.require(pathToConfig) : {}
         config = _.merge(this.defaultConfig(compileStep, output), config)
-        console.log(' ------------------------ Webpack Config \n', config)
+        console.log(' ------------------------ Config \n', config)
+        webpackCompiler = webpack(config)
 
-        // Configure a Webpack compiler. Calling webpack() with no callback
-        // returns a Webpack Compiler without running it.
-        var webpackCompiler = webpack(config)
-
-        // Run the Webpack compiler synchronously and give the result back to Meteor.
-        var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-        console.log(' --------------- Webpack Result \n')
+        /*
+         * Run the Webpack compiler synchronously and give the result back to Meteor.
+         */
+        webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
         compileStep.addJavaScript({
             path: compileStep.inputPath,
             data: fs.readFileSync(output).toString(),
             sourcePath: compileStep.inputPath,
             bare: true
         })
-
-        // Do it asynchronously.
-        //webpackCompiler.run(function() {
-            //console.log(' --------------- webpack finished ------------- \n', arguments)
-            //compileStep.addJavaScript({
-                //path: compileStep.inputPath,
-                //data: fs.readFileSync(output).toString(),
-                //sourcePath: compileStep.inputPath
-            //})
-        //})
     }
 })
 
 new CompileManager('main.js')
-new CompileManager('main.coffee.js') // in case it went through the coffee plugin first.
+new CompileManager('main.coffee.js') // in case there was a main.coffee
