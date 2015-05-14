@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Sets up a Meteor build plugin that compiles entrypoints into
+ * bundles. The code of the entrypoints can use module syntax (f.e. ES6, CJS,
+ * or AMD). Currently the plugin uses Webpack to compile entrypoints.
+ *
+ * TODO: Make webpack watch files for changes while in dev mode? Or is this handled by Meteor
+ * already?
+ */
+
 // builtin modules
 var path          = Npm.require('path')
 var fs            = Npm.require('fs')
@@ -55,32 +64,46 @@ function packageDir(compileStep) {
 }
 
 /**
- * An object containing info about a package installed in the current application.
  * @typedef PackageInfo
+ *
+ * An object containing info about a package installed in the current
+ * application. Besides the below described properties you'll also find the
+ * properties that `Package.describe` accepts in it's first argument.
+ * See http://docs.meteor.com/#/full/packagedescription
+ *
  * @type {Object}
  * @property {string} name The name of the package.
  * @property {string} path The full path of the package.
  * @property {Array.string} dependencies An array of package names that are the
- * dependencies of this package.
+ * dependencies of this package. The array is empty if there are no dependencies.
  */
 
 /**
  * Get a list of the packages depending on the named package in the current application.
  *
- * @param {string} package The name of the package to check dependents for.
- * @return {Array.PackageInfo} An array of objects, each object containing info on a
- * dependent of the specified package.
+ * @param {string} packageName The name of the package to check dependents for.
+ * @return {Array.PackageInfo|null} An array of objects, each object containing
+ * info on a dependent of the specified package. The array is empty if no
+ * dependents are found.
+ *
+ * TODO: The result of this should instead be in the `dependents` key of the
+ * result of `getPackageInfo()`. This means we'll have to take out the
+ * logic for finding a package's dependencies out of the `getPackageInfo`
+ * function into it's own `getPackageDependencies` function. We can then *not*
+ * use `getPackageInfo` inside of this `getDependents` function.
  */
 function dependentsOf(packageName) {
     var packages = installedPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
-        if (_.find(package.dependencies, function(dep) { return dep.match(packageName) })) {
+        if (package && _.find(package.dependencies, function(dep) { return dep.match(packageName) })) {
             result.push(package)
         }
         return result
     }, [])
 }
+
+//console.log(dependentsOf('rocket:module'))
 
 /**
  * Get info about a package if it exists in the local application or in
@@ -90,7 +113,7 @@ function dependentsOf(packageName) {
  * is specified but doesn't exist, or if no version is specified and no version
  * exists at all, null is returned.
  *
- * @param {string} package The name of a package.
+ * @param {string} name The name of a package.
  * @param {string} [version] The version the package to get info for.
  * @return {PackageInfo|null} An object containing details about the specified
  * package, or null if the package is not found.
@@ -98,7 +121,10 @@ function dependentsOf(packageName) {
  * TODO: Clean up the duplicate logic.
  */
 function getPackageInfo(name, version) {
+
+    // TODO: replace many of the packageDotJs uses below with meaningful names for readability.
     var packageDotJs, packageDotJsPath, versions, foundVersion
+
     var packageFound = false
     var nameParts = name.split(':')
 
@@ -118,31 +144,33 @@ function getPackageInfo(name, version) {
         }
 
         // Then check ~/.meteor/packages
-        else {
+        // TODO: Find dependencies for packages in ~/.meteor/packages by
+        // looking at the *.json files there instead of package.js.
+        //else {
 
-            // If the package exists in ~/.meteor/packages
-            packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
-            if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
+            //// If the package exists in ~/.meteor/packages
+            //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
+            //if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
 
-                // Get the valid semver versions.
-                packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-                packageDotJs = glob.sync(packageDotJs)
-                versions = _.reduce(packageDotJs, function(result, path) {
-                    var version = fileName(path)
-                    if (semver.valid(version)) result.push(version)
-                    return result
-                }, [])
+                //// Get the valid semver versions.
+                //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+                //packageDotJs = glob.sync(packageDotJs)
+                //versions = _.reduce(packageDotJs, function(result, path) {
+                    //var version = fileName(path)
+                    //if (semver.valid(version)) result.push(version)
+                    //return result
+                //}, [])
 
-                // Find the max version.
-                if (versions.length > 0) {
-                    foundVersion = semver.maxSatisfying(versions, '*')
+                //// Find the max version.
+                //if (versions.length > 0) {
+                    //foundVersion = semver.maxSatisfying(versions, '*')
 
-                    packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'package.js')
-                    packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-                    packageFound = true
-                }
-            }
-        }
+                    //packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
+                    //packageDotJs = fs.readFileSync(packageDotJsPath).toString()
+                    //packageFound = true
+                //}
+            //}
+        //}
     }
 
     // If a valid version was specified
@@ -156,61 +184,79 @@ function getPackageInfo(name, version) {
         }
 
         // Then check ~/.meteor/packages
-        else {
+        // TODO: Find dependencies for packages in ~/.meteor/packages by
+        // looking at the *.json files there instead of package.js.
+        //else {
 
-            // If the package exists in ~/.meteor/packages
-            packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
-            if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
+            //// If the package exists in ~/.meteor/packages
+            //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
+            //if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
 
-                // Get the valid semver versions.
-                packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-                packageDotJs = glob.sync(packageDotJs)
-                versions = _.reduce(packageDotJs, function(result, path) {
-                    var version = fileName(path)
-                    if (semver.valid(version)) result.push(version)
-                    return result
-                }, [])
+                //// Get the valid semver versions.
+                //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+                //packageDotJs = glob.sync(packageDotJs)
+                //versions = _.reduce(packageDotJs, function(result, path) {
+                    //var version = fileName(path)
+                    //if (semver.valid(version)) result.push(version)
+                    //return result
+                //}, [])
 
-                // Find the specified version.
-                if (versions.length > 0 && _.contains(versions, version)) {
-                    foundVersion = version
+                //// Find the specified version.
+                //if (versions.length > 0 && _.contains(versions, version)) {
+                    //foundVersion = version
 
-                    packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'package.js')
-                    packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-                    packageFound = true
-                }
-            }
-        }
+                    //packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
+                    //packageDotJs = fs.readFileSync(packageDotJsPath).toString()
+                    //packageFound = true
+                //}
+            //}
+        //}
     }
 
     function parseInfoFromPackageDotJs(source, path) {
         var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
         var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
-        var stringRegex = /['"][^'"]*['"]/
+        var stringRegex = /['"][^'"]*['"]/g
         var objectRegex = /{[^{}]*}/
 
+        var dependencies = []
+
         // Get the dependencies based on api.use calls.
-        var apiUses = apiDotUseRegex.exec(source)
-        var dependencies = _.reduce(apiUses, function(result, apiUse) {
-            var packages = stringRegex.exec(apiUse)
-            packages = _.map(function(package) {
-                return package.replace(/['"]/g, '')
-            })
-            return result.concat(packages)
-        }, [])
+        // TODO: Also include in the result which architecture each dependency is for.
+        var apiDotUseCalls = source.match(apiDotUseRegex)
+        if (apiDotUseCalls) {
+            dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
+                var packageStrings = apiDotUseCall.match(stringRegex)
+                if (packageStrings) {
+                    packageStrings = _.map(packageStrings, function(packageString) {
+                        return packageString.replace(/['"]/g, '')
+                    })
+                    result = result.concat(packageStrings)
+                }
+                return result
+            }, dependencies)
+        }
 
         // Get the package description from the Package.describe call.
-        var packageDescription = packageDotDescribeRegex.exec(source)[0]
-        packageDescription = objectRegex.exec(packageDescription)[0]
-        packageDescription = eval(packageDescription)
+        var packageDescription = packageDotDescribeRegex.exec(source)
+        if (packageDescription) {
+            packageDescription = objectRegex.exec(packageDescription[0])
+            if (packageDescription) {
+                eval("packageDescription = "+packageDescription[0])
+            }
+        }
 
         return _.assign({
             path: path,
-            dependencies: dependencies
+            dependencies: dependencies // empty array if no dependencies are found
         }, packageDescription)
     }
 
-    if (packageFound) return parseInfoFromPackageDotJs(packageDotJs, packageDotJsPath)
+    if (packageFound) {
+        console.log('\n --- A PACKAGE WAS FOUND --- \n', packageDotJs, packageDotJsPath)
+        console.log('\n --------------------------- \n')
+        return parseInfoFromPackageDotJs(packageDotJs, packageDotJsPath)
+    }
     else return null
 }
 
@@ -227,27 +273,12 @@ function getInstalledVersion(name) {
     var packagesFile = path.resolve(appDir(), '.meteor', 'versions')
     var lines = getLines(packagesFile)
     var line = _.find(lines, function(line) {
+        console.log(' -------------------- MATCH 1 ----------------------- \n')
         return line.match(new RegExp(name))
     })
     if (line) return line.split('@')[1]
     else return null
 }
-
-/*
- * Directions to Greg's:
- *
- * take 80
- * then 505 20-30 mi
- * 27a/27
- * another 6 miles to Highway 16 (Madison) overpass
- * pass esparto (stop sign, turn left to stay on 16)
- * go onto 20
- * pass rumsey
- * pass cache creek casino.
- * end of 16 see sign that says clearlake, turn left.
- * go 20 miles.
- * clearlake oaks.
- */
 
 /**
  * Get a list of installed packages in the current application. If
@@ -262,6 +293,7 @@ function installedPackages(explicitlyInstalled) {
     var packagesFile = path.resolve(appDir(), '.meteor', fileName)
     var lines = getLines(packagesFile)
     lines = _.reduce(lines, function(result, line) {
+        console.log(' -------------------- MATCH 2 ----------------------- \n')
         if (!line.match(/^#/) && line.length !== 0) {
             result.push(line.split('@')[0])
         }
