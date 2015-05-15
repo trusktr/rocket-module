@@ -114,11 +114,12 @@ function dependentsOf(packageName) {
  * exists at all, null is returned.
  *
  * @param {string} name The name of a package.
- * @param {string} [version] The version the package to get info for.
+ * @param {string} [version] The version of the package to get info for.
+ * Defaults to (in the following order) the version installed in the
+ * application, or the latest version found if not installed in the
+ * application.
  * @return {PackageInfo|null} An object containing details about the specified
  * package, or null if the package is not found.
- *
- * TODO: Clean up the duplicate logic.
  */
 function getPackageInfo(name, version) {
 
@@ -132,85 +133,55 @@ function getPackageInfo(name, version) {
     var packageName = nameParts[nameParts.length === 1 ? 0 : 1]
     var packageCacheName = nameParts.join('_')
 
-    // If no version was specified
-    if (!version) {
-
-        // First check the app's local packages directory.
-        // TODO: Handle same-name packages with different vendor names?
-        packageDotJsPath = path.resolve(appDir(), 'packages', packageName, 'package.js')
-        if (fs.existsSync(packageDotJsPath)) {
-            packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-            packageFound = true
-        }
-
-        // Then check ~/.meteor/packages
-        // TODO: Find dependencies for packages in ~/.meteor/packages by
-        // looking at the *.json files there instead of package.js.
-        //else {
-
-            //// If the package exists in ~/.meteor/packages
-            //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
-            //if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
-
-                //// Get the valid semver versions.
-                //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-                //packageDotJs = glob.sync(packageDotJs)
-                //versions = _.reduce(packageDotJs, function(result, path) {
-                    //var version = fileName(path)
-                    //if (semver.valid(version)) result.push(version)
-                    //return result
-                //}, [])
-
-                //// Find the max version.
-                //if (versions.length > 0) {
-                    //foundVersion = semver.maxSatisfying(versions, '*')
-
-                    //packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
-                    //packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-                    //packageFound = true
-                //}
-            //}
-        //}
+    // First check the app's local packages directory. If the package
+    // exists locally and either the user didn't specify a version or the user
+    // specified a version that happens to be the version of the local package
+    //
+    // TODO: Handle same-name packages with different vendor names?
+    packageDotJsPath = path.resolve(appDir(), 'packages', packageName, 'package.js')
+    if (
+        (fs.existsSync(packageDotJsPath) && !version) ||
+        (fs.existsSync(packageDotJsPath) && version && semver.eq(getInstalledVersion(name), version))
+    ) {
+        packageDotJs = fs.readFileSync(packageDotJsPath).toString()
+        packageFound = true
     }
 
-    // If a valid version was specified
-    else if (semver.valid(version)) {
+    // Otherwise check ~/.meteor/packages, and either find the package with the
+    // version specified, or the max version of the specified package if no
+    // version was specified.
+    //
+    // TODO: Find dependencies for packages in ~/.meteor/packages by
+    // looking at the *.json files there instead of package.js.
+    else {
 
-        // First check the app's local packages directory.
-        packageDotJsPath = path.resolve(appDir(), 'packages', packageName, 'package.js')
-        if (fs.existsSync(packageDotJsPath) && semver.eq(getInstalledVersion(name), version)) {
-            packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-            packageFound = true
+        // If the package exists in ~/.meteor/packages
+        packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
+        if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
+
+            // Get the valid semver versions.
+            packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+            packageDotJs = glob.sync(packageDotJs)
+            versions = _.reduce(packageDotJs, function(result, path) {
+                var version = fileName(path)
+                if (semver.valid(version)) result.push(version)
+                return result
+            }, [])
+
+            // Find the specified version, or find the max version if version wasn't specified.
+            if (versions.length > 0) {
+                if (version && _.contains(versions, version))
+                    foundVersion = version
+                else if (!version)
+                    foundVersion = semver.maxSatisfying(versions, '*')
+
+                if (foundVersion) {
+                    packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
+                    packageDotJs = fs.readFileSync(packageDotJsPath).toString()
+                    packageFound = true
+                }
+            }
         }
-
-        // Then check ~/.meteor/packages
-        // TODO: Find dependencies for packages in ~/.meteor/packages by
-        // looking at the *.json files there instead of package.js.
-        //else {
-
-            //// If the package exists in ~/.meteor/packages
-            //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
-            //if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
-
-                //// Get the valid semver versions.
-                //packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-                //packageDotJs = glob.sync(packageDotJs)
-                //versions = _.reduce(packageDotJs, function(result, path) {
-                    //var version = fileName(path)
-                    //if (semver.valid(version)) result.push(version)
-                    //return result
-                //}, [])
-
-                //// Find the specified version.
-                //if (versions.length > 0 && _.contains(versions, version)) {
-                    //foundVersion = version
-
-                    //packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
-                    //packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-                    //packageFound = true
-                //}
-            //}
-        //}
     }
 
     function parseInfoFromPackageDotJs(source, path) {
@@ -252,6 +223,7 @@ function getPackageInfo(name, version) {
         }, packageDescription)
     }
 
+    // If a package was found, get the package info, otherwise return null.
     if (packageFound) {
         console.log('\n --- A PACKAGE WAS FOUND --- \n', packageDotJs, packageDotJsPath)
         console.log('\n --------------------------- \n')
