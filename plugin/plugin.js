@@ -68,14 +68,17 @@ function packageDir(compileStep) {
  *
  * An object containing info about a package installed in the current
  * application. Besides the below described properties you'll also find the
- * properties that `Package.describe` accepts in it's first argument.
+ * properties that `Package.describe` accepts in it's first argument when the
+ * package is found locally. Packages in ~/.meteor/packages don't have info
+ * obtainable from a package.js file.
  * See http://docs.meteor.com/#/full/packagedescription
  *
  * @type {Object}
  * @property {string} name The name of the package.
  * @property {string} path The full path of the package.
  * @property {Array.string} dependencies An array of package names that are the
- * dependencies of this package. The array is empty if there are no dependencies.
+ * dependencies of this package, each name appended with @<version> if a
+ * version is found. The array is empty if there are no dependencies.
  */
 
 /**
@@ -90,9 +93,9 @@ function packageDir(compileStep) {
  * result of `getPackageInfo()`. This means we'll have to take out the
  * logic for finding a package's dependencies out of the `getPackageInfo`
  * function into it's own `getPackageDependencies` function. We can then *not*
- * use `getPackageInfo` inside of this `getDependents` function.
+ * use `getPackageInfo` inside of this `getDependentsOf` function.
  */
-function dependentsOf(packageName) {
+function getDependentsOf(packageName) {
     var packages = installedPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
@@ -103,7 +106,8 @@ function dependentsOf(packageName) {
     }, [])
 }
 
-//console.log(dependentsOf('rocket:module'))
+//console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
+//console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
 
 /**
  * Get info about a package if it exists in the local application or in
@@ -113,24 +117,29 @@ function dependentsOf(packageName) {
  * is specified but doesn't exist, or if no version is specified and no version
  * exists at all, null is returned.
  *
- * @param {string} name The name of a package.
- * @param {string} [version] The version of the package to get info for.
+ * @param {string} packageName The name of a package, including the username:
+ * prefix if not an MDG package.
+ * @param {string} [packageVersion] The version of the package to get info for.
  * Defaults to (in the following order) the version installed in the
  * application, or the latest version found if not installed in the
  * application.
  * @return {PackageInfo|null} An object containing details about the specified
  * package, or null if the package is not found.
+ *
+ * TODO: This is assuming that local packages are in the default location in
+ * the packages folder of the application, but this might not be the case if a
+ * different path is specified with the PACKAGE_DIRS environment variable.
  */
-function getPackageInfo(name, version) {
+function getPackageInfo(packageName, packageVersion) {
 
-    // TODO: replace many of the packageDotJs uses below with meaningful names for readability.
-    var packageDotJs, packageDotJsPath, versions, foundVersion
+    var packageDotJsSource, packageDotJsPath, packagePath,
+        versions, foundVersion, packageInfo
 
     var packageFound = false
-    var nameParts = name.split(':')
+    var nameParts = packageName.split(':')
 
     // If the package is made by MDG, it has no username or organization prefix (vendor name).
-    var packageName = nameParts[nameParts.length === 1 ? 0 : 1]
+    var packageLocalName = nameParts[nameParts.length === 1 ? 0 : 1]
     var packageCacheName = nameParts.join('_')
 
     // First check the app's local packages directory. If the package
@@ -138,13 +147,13 @@ function getPackageInfo(name, version) {
     // specified a version that happens to be the version of the local package
     //
     // TODO: Handle same-name packages with different vendor names?
-    packageDotJsPath = path.resolve(appDir(), 'packages', packageName, 'package.js')
+    packageDotJsPath = path.resolve(appDir(), 'packages', packageLocalName, 'package.js')
     if (
-        (fs.existsSync(packageDotJsPath) && !version) ||
-        (fs.existsSync(packageDotJsPath) && version && semver.eq(getInstalledVersion(name), version))
+        (fs.existsSync(packageDotJsPath) && !packageVersion) ||
+        (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
     ) {
-        packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-        packageFound = true
+        packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
+        packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
     }
 
     // Otherwise check ~/.meteor/packages, and either find the package with the
@@ -156,35 +165,34 @@ function getPackageInfo(name, version) {
     else {
 
         // If the package exists in ~/.meteor/packages
-        packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '**', 'package.js')
-        if (glob.sync(packageDotJs, {nonull: true})[0] !== packageDotJs) {
+        packagePath = path.join(userHome, '.meteor/packages', packageCacheName)
+        if (fs.existsSync(packagePath)) {
 
             // Get the valid semver versions.
-            packageDotJs = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-            packageDotJs = glob.sync(packageDotJs)
-            versions = _.reduce(packageDotJs, function(result, path) {
-                var version = fileName(path)
+            versions = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+            versions = glob.sync(versions)
+            versions = _.reduce(versions, function(result, versionPath) {
+                var version = fileName(versionPath)
                 if (semver.valid(version)) result.push(version)
                 return result
             }, [])
 
-            // Find the specified version, or find the max version if version wasn't specified.
+            // If any versions exist, find the specified version, or find the
+            // maximum version if a specific version wasn't specified.
             if (versions.length > 0) {
-                if (version && _.contains(versions, version))
-                    foundVersion = version
-                else if (!version)
+                if (packageVersion && _.contains(versions, packageVersion))
+                    foundVersion = packageVersion
+                else if (!packageVersion)
                     foundVersion = semver.maxSatisfying(versions, '*')
 
                 if (foundVersion) {
-                    packageDotJsPath = path.join(userHome, '.meteor/packages', packageCacheName, foundVersion, 'unipackage.json')
-                    packageDotJs = fs.readFileSync(packageDotJsPath).toString()
-                    packageFound = true
+                    packageInfo = getInfoFromCachePackage(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
                 }
             }
         }
     }
 
-    function parseInfoFromPackageDotJs(source, path) {
+    function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
         var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
         var stringRegex = /['"][^'"]*['"]/g
@@ -194,7 +202,7 @@ function getPackageInfo(name, version) {
 
         // Get the dependencies based on api.use calls.
         // TODO: Also include in the result which architecture each dependency is for.
-        var apiDotUseCalls = source.match(apiDotUseRegex)
+        var apiDotUseCalls = packageDotJsSource.match(apiDotUseRegex)
         if (apiDotUseCalls) {
             dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
                 var packageStrings = apiDotUseCall.match(stringRegex)
@@ -209,7 +217,7 @@ function getPackageInfo(name, version) {
         }
 
         // Get the package description from the Package.describe call.
-        var packageDescription = packageDotDescribeRegex.exec(source)
+        var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
         if (packageDescription) {
             packageDescription = objectRegex.exec(packageDescription[0])
             if (packageDescription) {
@@ -217,39 +225,129 @@ function getPackageInfo(name, version) {
             }
         }
 
-        return _.assign({
-            path: path,
+        return _.assign(packageDescription, {
+            path: packagePath,
             dependencies: dependencies // empty array if no dependencies are found
-        }, packageDescription)
+        })
+    }
+
+    // Get the JSON result from isopack.json if it exists, then
+    // unipackage.json if it exists, otherwise null if neither
+    // exist.
+    //
+    function isoOrUni(packagePath) {
+        var isoUniPath = path.join(packagePath, 'isopack.json')
+        var result
+
+        // if the isopack.json path doesn't exist
+        if (!fs.existsSync(isoUniPath))
+            isoUniPath = path.join(packagePath, 'unipackage.json')
+
+        // if the unipackage.json path doesn't exist
+        if (!fs.existsSync(isoUniPath))
+            isoUniPath = null
+
+
+        // if one of the two files was found, return the parsed JSON result, otherwise null.
+        if (isoUniPath) {
+            result = JSON.parse(fs.readFileSync(isoUniPath).toString())
+
+            // If we're using isopack.json, get the isopack-1 object.
+            // XXX: Is the top-most key in isopack.json always "isopack-1"? If
+            // not, handle the possiblity of a different key name.
+            if (isoUniPath.match(/isopack\.json/)) {
+                if (typeof result['isopack-1'] !== 'undefined')
+                    result = result['isopack-1']
+                else
+                    // XXX: If it happens, let's catch it. Someone will complain and we'll fix it. x)
+                    throw new Error('isopack-1 is undefined. Please report this issue. Thanks!')
+            }
+
+            return result
+        }
+        return null
+    }
+
+    // Get the dependencies from a cache package's os.json, web.browser.json,
+    // or web.cordova.json files.
+    //
+    // XXX: This is naive. The result doesn't show which deps are for which
+    // architectures, and assumes the versions are the same across
+    // architectures. I made this for rocket:module only needed to detect if a
+    // package uses rocket:module.
+    function getDependenciesFromPlatformFiles(packagePath) {
+        var platformFileNames = [
+            'os.json',
+            'web.browser.json',
+            'web.cordova.json'
+        ]
+
+        var dependencies = []
+
+        dependencies = _.map(platformFileNames, function(file) {
+            var info = JSON.parse(fs.readFileSync(path.join(packagePath, file)).toString())
+            return _.pick(info, 'uses')
+        })
+
+        dependencies = _.reduce(dependencies, function(result, usesObj) {
+            return _.merge(result, usesObj, function(a, b) {
+                if (_.isArray(a) && _.isArray(b)) {
+                    return _.unique(_.union(a, b), 'package')
+                }
+            })
+        }, {})
+
+        dependencies = _.map(dependencies.uses, function(use) {
+            return use.package + (typeof use.constraint !== 'undefined' ? '@'+use.constraint : '')
+        })
+
+        return dependencies
+    }
+
+    // get PackageInfo from a package in the package cache (a package in the
+    // ~/.meteor/packages).
+    function getInfoFromCachePackage(packagePath) {
+        var isoUniResult = isoOrUni(packagePath)
+        var result = {}
+        var dependencies = []
+
+
+        if (isoUniResult) {
+            result = _.assign(result, _.pick(isoUniResult, 'name', 'summary', 'version'))
+        }
+
+        dependencies = getDependenciesFromPlatformFiles(packagePath)
+
+        result = _.assign(result, {
+            path: packagePath,
+            dependencies: dependencies
+        })
+
+        return result
     }
 
     // If a package was found, get the package info, otherwise return null.
-    if (packageFound) {
-        console.log('\n --- A PACKAGE WAS FOUND --- \n', packageDotJs, packageDotJsPath)
-        console.log('\n --------------------------- \n')
-        return parseInfoFromPackageDotJs(packageDotJs, packageDotJsPath)
-    }
-    else return null
+    if (packageInfo) return packageInfo
+    return null
 }
 
 /**
  * Get the version of an installed package.
  *
- * @param {string} name The name of the package.
+ * @param {string} packageName The name of the package.
  * @return {string|null} The version of the package or null if the package
  * isn't installed.
  *
  * XXX: Handle wrapper numbers? f.e. 0.2.3_3 with the underscore
  */
-function getInstalledVersion(name) {
+function getInstalledVersion(packageName) {
     var packagesFile = path.resolve(appDir(), '.meteor', 'versions')
     var lines = getLines(packagesFile)
     var line = _.find(lines, function(line) {
-        console.log(' -------------------- MATCH 1 ----------------------- \n')
-        return line.match(new RegExp(name))
+        return line.match(new RegExp(packageName))
     })
     if (line) return line.split('@')[1]
-    else return null
+    return null
 }
 
 /**
@@ -265,7 +363,6 @@ function installedPackages(explicitlyInstalled) {
     var packagesFile = path.resolve(appDir(), '.meteor', fileName)
     var lines = getLines(packagesFile)
     lines = _.reduce(lines, function(result, line) {
-        console.log(' -------------------- MATCH 2 ----------------------- \n')
         if (!line.match(/^#/) && line.length !== 0) {
             result.push(line.split('@')[0])
         }
@@ -291,7 +388,6 @@ function getLines(file) {
  */
 function fileName(fullPath) {
     var parts = fullPath.split(path.sep)
-    console.log('&&&&&&&&&&&&&&&&&&&&&&&&', path.sep, parts)
     return parts[parts.length-1]
 }
 
@@ -372,11 +468,9 @@ _.assign(CompileManager.prototype, {
          */
         pathToConfig = path.join(packagesDirRelativeToNodeModules(),
             fileName(currentPackage), 'module.config.js')
-        console.log(' -- path to config file: ', pathToConfig)
         config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
             Npm.require(pathToConfig) : {}
         config = _.merge(this.defaultConfig(compileStep, output), config)
-        console.log(' ------------------------ Config \n', config)
         webpackCompiler = webpack(config)
 
         /*
