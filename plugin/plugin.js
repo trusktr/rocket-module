@@ -64,6 +64,47 @@ function packageDir(compileStep) {
 }
 
 /**
+ * Get the lines of a file as an array.
+ * @param {string} file A file to read.
+ * @return {Array.string} An array of the lines in the file.
+ */
+function getLines(file) {
+    return fs.readFileSync(file).toString().split('\n')
+}
+
+/**
+ * Get the last part of a path (the file name).
+ *
+ * @param {string} path A path to a file.
+ * @return {string} The file name.
+ */
+function fileName(fullPath) {
+    var parts = fullPath.split(path.sep)
+    return parts[parts.length-1]
+}
+
+/**
+ * Get a list of installed packages in the current application. If
+ * explicitlyInstalled is truthy, then only explicitly installed package names
+ * are returned.
+ *
+ * @param {boolean} [explicitlyInstalled] If true, get only explicitly installed packages.
+ * @return {Array.string} An array of package names.
+ */
+function getInstalledPackages(explicitlyInstalled) {
+    var fileName = explicitlyInstalled ? 'packages' : 'versions'
+    var packagesFile = path.resolve(appDir(), '.meteor', fileName)
+    var lines = getLines(packagesFile)
+    lines = _.reduce(lines, function(result, line) {
+        if (!line.match(/^#/) && line.length !== 0) {
+            result.push(line.split('@')[0])
+        }
+        return result
+    }, [])
+    return lines
+}
+
+/**
  * @typedef PackageInfo
  *
  * An object containing info about a package installed in the current
@@ -108,94 +149,6 @@ function getDependentsOf(packageName) {
 
 //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
-
-/**
- * Get info about a package if it exists in the local application or in
- * ~/.meteor/packages. Unless specified, info will be for the currently
- * installed version of the package that is found in the current application
- * falling back to the latest version found in ~/.meteor/packages. If a version
- * is specified but doesn't exist, or if no version is specified and no version
- * exists at all, null is returned.
- *
- * @param {string} packageName The name of a package, including the username:
- * prefix if not an MDG package.
- * @param {string} [packageVersion] The version of the package to get info for.
- * Defaults to (in the following order) the version installed in the
- * application, or the latest version found if not installed in the
- * application.
- * @return {PackageInfo|null} An object containing details about the specified
- * package, or null if the package is not found.
- *
- * TODO: This is assuming that local packages are in the default location in
- * the packages folder of the application, but this might not be the case if a
- * different path is specified with the PACKAGE_DIRS environment variable.
- */
-function getPackageInfo(packageName, packageVersion) {
-
-    var packageDotJsSource, packageDotJsPath, packagePath,
-        versions, foundVersion, packageInfo
-
-    var packageFound = false
-    var nameParts = packageName.split(':')
-
-    // If the package is made by MDG, it has no username or organization prefix (vendor name).
-    var packageLocalName = nameParts[nameParts.length === 1 ? 0 : 1]
-    var packageCacheName = nameParts.join('_')
-
-    // First check the app's local packages directory. If the package
-    // exists locally and either the user didn't specify a version or the user
-    // specified a version that happens to be the version of the local package
-    //
-    // TODO: Handle same-name packages with different vendor names?
-    packageDotJsPath = path.resolve(appDir(), 'packages', packageLocalName, 'package.js')
-    if (
-        (fs.existsSync(packageDotJsPath) && !packageVersion) ||
-        (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
-    ) {
-        packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
-        packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
-    }
-
-    // Otherwise check ~/.meteor/packages, and either find the package with the
-    // version specified, or the max version of the specified package if no
-    // version was specified.
-    //
-    // TODO: Find dependencies for packages in ~/.meteor/packages by
-    // looking at the *.json files there instead of package.js.
-    else {
-
-        // If the package exists in ~/.meteor/packages
-        packagePath = path.join(userHome, '.meteor/packages', packageCacheName)
-        if (fs.existsSync(packagePath)) {
-
-            // Get the valid semver versions.
-            versions = path.join(userHome, '.meteor/packages', packageCacheName, '*')
-            versions = glob.sync(versions)
-            versions = _.reduce(versions, function(result, versionPath) {
-                var version = fileName(versionPath)
-                if (semver.valid(version)) result.push(version)
-                return result
-            }, [])
-
-            // If any versions exist, find the specified version, or find the
-            // maximum version if a specific version wasn't specified.
-            if (versions.length > 0) {
-                if (packageVersion && _.contains(versions, packageVersion))
-                    foundVersion = packageVersion
-                else if (!packageVersion)
-                    foundVersion = semver.maxSatisfying(versions, '*')
-
-                if (foundVersion) {
-                    packageInfo = getInfoFromCachePackage(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
-                }
-            }
-        }
-    }
-
-    // If a package was found, get the package info, otherwise return null.
-    if (packageInfo) return packageInfo
-    return null
-}
 
 function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
@@ -351,44 +304,91 @@ function getInstalledVersion(packageName) {
 }
 
 /**
- * Get a list of installed packages in the current application. If
- * explicitlyInstalled is truthy, then only explicitly installed package names
- * are returned.
+ * Get info about a package if it exists in the local application or in
+ * ~/.meteor/packages. Unless specified, info will be for the currently
+ * installed version of the package that is found in the current application
+ * falling back to the latest version found in ~/.meteor/packages. If a version
+ * is specified but doesn't exist, or if no version is specified and no version
+ * exists at all, null is returned.
  *
- * @param {boolean} [explicitlyInstalled] If true, get only explicitly installed packages.
- * @return {Array.string} An array of package names.
+ * @param {string} packageName The name of a package, including the username:
+ * prefix if not an MDG package.
+ * @param {string} [packageVersion] The version of the package to get info for.
+ * Defaults to (in the following order) the version installed in the
+ * application, or the latest version found if not installed in the
+ * application.
+ * @return {PackageInfo|null} An object containing details about the specified
+ * package, or null if the package is not found.
+ *
+ * TODO: This is assuming that local packages are in the default location in
+ * the packages folder of the application, but this might not be the case if a
+ * different path is specified with the PACKAGE_DIRS environment variable.
  */
-function getInstalledPackages(explicitlyInstalled) {
-    var fileName = explicitlyInstalled ? 'packages' : 'versions'
-    var packagesFile = path.resolve(appDir(), '.meteor', fileName)
-    var lines = getLines(packagesFile)
-    lines = _.reduce(lines, function(result, line) {
-        if (!line.match(/^#/) && line.length !== 0) {
-            result.push(line.split('@')[0])
+function getPackageInfo(packageName, packageVersion) {
+
+    var packageDotJsSource, packageDotJsPath, packagePath,
+        versions, foundVersion, packageInfo
+
+    var packageFound = false
+    var nameParts = packageName.split(':')
+
+    // If the package is made by MDG, it has no username or organization prefix (vendor name).
+    var packageLocalName = nameParts[nameParts.length === 1 ? 0 : 1]
+    var packageCacheName = nameParts.join('_')
+
+    // First check the app's local packages directory. If the package
+    // exists locally and either the user didn't specify a version or the user
+    // specified a version that happens to be the version of the local package
+    //
+    // TODO: Handle same-name packages with different vendor names?
+    packageDotJsPath = path.resolve(appDir(), 'packages', packageLocalName, 'package.js')
+    if (
+        (fs.existsSync(packageDotJsPath) && !packageVersion) ||
+        (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
+    ) {
+        packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
+        packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
+    }
+
+    // Otherwise check ~/.meteor/packages, and either find the package with the
+    // version specified, or the max version of the specified package if no
+    // version was specified.
+    //
+    // TODO: Find dependencies for packages in ~/.meteor/packages by
+    // looking at the *.json files there instead of package.js.
+    else {
+
+        // If the package exists in ~/.meteor/packages
+        packagePath = path.join(userHome, '.meteor/packages', packageCacheName)
+        if (fs.existsSync(packagePath)) {
+
+            // Get the valid semver versions.
+            versions = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+            versions = glob.sync(versions)
+            versions = _.reduce(versions, function(result, versionPath) {
+                var version = fileName(versionPath)
+                if (semver.valid(version)) result.push(version)
+                return result
+            }, [])
+
+            // If any versions exist, find the specified version, or find the
+            // maximum version if a specific version wasn't specified.
+            if (versions.length > 0) {
+                if (packageVersion && _.contains(versions, packageVersion))
+                    foundVersion = packageVersion
+                else if (!packageVersion)
+                    foundVersion = semver.maxSatisfying(versions, '*')
+
+                if (foundVersion) {
+                    packageInfo = getInfoFromCachePackage(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
+                }
+            }
         }
-        return result
-    }, [])
-    return lines
-}
+    }
 
-/**
- * Get the lines of a file as an array.
- * @param {string} file A file to read.
- * @return {Array.string} An array of the lines in the file.
- */
-function getLines(file) {
-    return fs.readFileSync(file).toString().split('\n')
-}
-
-/**
- * Get the last part of a path (the file name).
- *
- * @param {string} path A path to a file.
- * @return {string} The file name.
- */
-function fileName(fullPath) {
-    var parts = fullPath.split(path.sep)
-    return parts[parts.length-1]
+    // If a package was found, get the package info, otherwise return null.
+    if (packageInfo) return packageInfo
+    return null
 }
 
 /**
