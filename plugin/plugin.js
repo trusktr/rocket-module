@@ -96,7 +96,7 @@ function packageDir(compileStep) {
  * use `getPackageInfo` inside of this `getDependentsOf` function.
  */
 function getDependentsOf(packageName) {
-    var packages = installedPackages()
+    var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
         if (package && _.find(package.dependencies, function(dep) { return dep.match(packageName) })) {
@@ -192,143 +192,143 @@ function getPackageInfo(packageName, packageVersion) {
         }
     }
 
-    function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
-        var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
-        var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
-        var stringRegex = /['"][^'"]*['"]/g
-        var objectRegex = /{[^{}]*}/
-
-        var dependencies = []
-
-        // Get the dependencies based on api.use calls.
-        // TODO: Also include in the result which architecture each dependency is for.
-        var apiDotUseCalls = packageDotJsSource.match(apiDotUseRegex)
-        if (apiDotUseCalls) {
-            dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
-                var packageStrings = apiDotUseCall.match(stringRegex)
-                if (packageStrings) {
-                    packageStrings = _.map(packageStrings, function(packageString) {
-                        return packageString.replace(/['"]/g, '')
-                    })
-                    result = result.concat(packageStrings)
-                }
-                return result
-            }, dependencies)
-        }
-
-        // Get the package description from the Package.describe call.
-        var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
-        if (packageDescription) {
-            packageDescription = objectRegex.exec(packageDescription[0])
-            if (packageDescription) {
-                eval("packageDescription = "+packageDescription[0])
-            }
-        }
-
-        return _.assign(packageDescription, {
-            path: packagePath,
-            dependencies: dependencies // empty array if no dependencies are found
-        })
-    }
-
-    // Get the JSON result from isopack.json if it exists, then
-    // unipackage.json if it exists, otherwise null if neither
-    // exist.
-    //
-    function isoOrUni(packagePath) {
-        var isoUniPath = path.join(packagePath, 'isopack.json')
-        var result
-
-        // if the isopack.json path doesn't exist
-        if (!fs.existsSync(isoUniPath))
-            isoUniPath = path.join(packagePath, 'unipackage.json')
-
-        // if the unipackage.json path doesn't exist
-        if (!fs.existsSync(isoUniPath))
-            isoUniPath = null
-
-
-        // if one of the two files was found, return the parsed JSON result, otherwise null.
-        if (isoUniPath) {
-            result = JSON.parse(fs.readFileSync(isoUniPath).toString())
-
-            // If we're using isopack.json, get the isopack-1 object.
-            // XXX: Is the top-most key in isopack.json always "isopack-1"? If
-            // not, handle the possiblity of a different key name.
-            if (isoUniPath.match(/isopack\.json/)) {
-                if (typeof result['isopack-1'] !== 'undefined')
-                    result = result['isopack-1']
-                else
-                    // XXX: If it happens, let's catch it. Someone will complain and we'll fix it. x)
-                    throw new Error('isopack-1 is undefined. Please report this issue. Thanks!')
-            }
-
-            return result
-        }
-        return null
-    }
-
-    // Get the dependencies from a cache package's os.json, web.browser.json,
-    // or web.cordova.json files.
-    //
-    // XXX: This is naive. The result doesn't show which deps are for which
-    // architectures, and assumes the versions are the same across
-    // architectures. I made this for rocket:module only needed to detect if a
-    // package uses rocket:module.
-    function getDependenciesFromPlatformFiles(packagePath) {
-        var platformFileNames = [
-            'os.json',
-            'web.browser.json',
-            'web.cordova.json'
-        ]
-
-        var dependencies = []
-
-        dependencies = _.map(platformFileNames, function(file) {
-            var info = JSON.parse(fs.readFileSync(path.join(packagePath, file)).toString())
-            return _.pick(info, 'uses')
-        })
-
-        dependencies = _.reduce(dependencies, function(result, usesObj) {
-            return _.merge(result, usesObj, function(a, b) {
-                if (_.isArray(a) && _.isArray(b)) {
-                    return _.unique(_.union(a, b), 'package')
-                }
-            })
-        }, {})
-
-        dependencies = _.map(dependencies.uses, function(use) {
-            return use.package + (typeof use.constraint !== 'undefined' ? '@'+use.constraint : '')
-        })
-
-        return dependencies
-    }
-
-    // get PackageInfo from a package in the package cache (a package in the
-    // ~/.meteor/packages).
-    function getInfoFromCachePackage(packagePath) {
-        var isoUniResult = isoOrUni(packagePath)
-        var result = {}
-        var dependencies = []
-
-
-        if (isoUniResult) {
-            result = _.assign(result, _.pick(isoUniResult, 'name', 'summary', 'version'))
-        }
-
-        dependencies = getDependenciesFromPlatformFiles(packagePath)
-
-        result = _.assign(result, {
-            path: packagePath,
-            dependencies: dependencies
-        })
-
-        return result
-    }
-
     // If a package was found, get the package info, otherwise return null.
     if (packageInfo) return packageInfo
     return null
+}
+
+function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
+    var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
+    var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
+    var stringRegex = /['"][^'"]*['"]/g
+    var objectRegex = /{[^{}]*}/
+
+    var dependencies = []
+
+    // Get the dependencies based on api.use calls.
+    // TODO: Also include in the result which architecture each dependency is for.
+    var apiDotUseCalls = packageDotJsSource.match(apiDotUseRegex)
+    if (apiDotUseCalls) {
+        dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
+            var packageStrings = apiDotUseCall.match(stringRegex)
+            if (packageStrings) {
+                packageStrings = _.map(packageStrings, function(packageString) {
+                    return packageString.replace(/['"]/g, '')
+                })
+                result = result.concat(packageStrings)
+            }
+            return result
+        }, dependencies)
+    }
+
+    // Get the package description from the Package.describe call.
+    var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
+    if (packageDescription) {
+        packageDescription = objectRegex.exec(packageDescription[0])
+        if (packageDescription) {
+            eval("packageDescription = "+packageDescription[0])
+        }
+    }
+
+    return _.assign(packageDescription, {
+        path: packagePath,
+        dependencies: dependencies // empty array if no dependencies are found
+    })
+}
+
+// Get the JSON result from isopack.json if it exists, then
+// unipackage.json if it exists, otherwise null if neither
+// exist.
+//
+function isoOrUni(packagePath) {
+    var isoUniPath = path.join(packagePath, 'isopack.json')
+    var result
+
+    // if the isopack.json path doesn't exist
+    if (!fs.existsSync(isoUniPath))
+        isoUniPath = path.join(packagePath, 'unipackage.json')
+
+    // if the unipackage.json path doesn't exist
+    if (!fs.existsSync(isoUniPath))
+        isoUniPath = null
+
+
+    // if one of the two files was found, return the parsed JSON result, otherwise null.
+    if (isoUniPath) {
+        result = JSON.parse(fs.readFileSync(isoUniPath).toString())
+
+        // If we're using isopack.json, get the isopack-1 object.
+        // XXX: Is the top-most key in isopack.json always "isopack-1"? If
+        // not, handle the possiblity of a different key name.
+        if (isoUniPath.match(/isopack\.json/)) {
+            if (typeof result['isopack-1'] !== 'undefined')
+                result = result['isopack-1']
+            else
+                // XXX: If it happens, let's catch it. Someone will complain and we'll fix it. x)
+                throw new Error('isopack-1 is undefined. Please report this issue. Thanks!')
+        }
+
+        return result
+    }
+    return null
+}
+
+// Get the dependencies from a cache package's os.json, web.browser.json,
+// or web.cordova.json files.
+//
+// TODO: Make this less naive. The result doesn't show which deps are for which
+// architectures, and assumes the versions are the same across
+// architectures. I made this for rocket:module only needed to detect if a
+// package uses rocket:module.
+function getDependenciesFromPlatformFiles(packagePath) {
+    var platformFileNames = [
+        'os.json',
+        'web.browser.json',
+        'web.cordova.json'
+    ]
+
+    var dependencies = []
+
+    dependencies = _.map(platformFileNames, function(file) {
+        var info = JSON.parse(fs.readFileSync(path.join(packagePath, file)).toString())
+        return _.pick(info, 'uses')
+    })
+
+    dependencies = _.reduce(dependencies, function(result, usesObj) {
+        return _.merge(result, usesObj, function(a, b) {
+            if (_.isArray(a) && _.isArray(b)) {
+                return _.unique(_.union(a, b), 'package')
+            }
+        })
+    }, {})
+
+    dependencies = _.map(dependencies.uses, function(use) {
+        return use.package + (typeof use.constraint !== 'undefined' ? '@'+use.constraint : '')
+    })
+
+    return dependencies
+}
+
+// get PackageInfo from a package in the package cache (a package in the
+// ~/.meteor/packages).
+function getInfoFromCachePackage(packagePath) {
+    var isoUniResult = isoOrUni(packagePath)
+    var result = {}
+    var dependencies = []
+
+
+    if (isoUniResult) {
+        result = _.assign(result, _.pick(isoUniResult, 'name', 'summary', 'version'))
+    }
+
+    dependencies = getDependenciesFromPlatformFiles(packagePath)
+
+    result = _.assign(result, {
+        path: packagePath,
+        dependencies: dependencies
+    })
+
+    return result
 }
 
 /**
@@ -358,7 +358,7 @@ function getInstalledVersion(packageName) {
  * @param {boolean} [explicitlyInstalled] If true, get only explicitly installed packages.
  * @return {Array.string} An array of package names.
  */
-function installedPackages(explicitlyInstalled) {
+function getInstalledPackages(explicitlyInstalled) {
     var fileName = explicitlyInstalled ? 'packages' : 'versions'
     var packagesFile = path.resolve(appDir(), '.meteor', fileName)
     var lines = getLines(packagesFile)
