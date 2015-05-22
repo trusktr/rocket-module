@@ -147,7 +147,7 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
-//console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
+console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
 
 function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
@@ -467,7 +467,7 @@ _.assign(CompileManager.prototype, {
          * target packageDir.
          */
         pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-            fileName(currentPackage), 'module.config.js')
+            fileName(currentPackage), 'webpack.config.js')
         config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
             Npm.require(pathToConfig) : {}
         config = _.merge(this.defaultConfig(compileStep, output), config)
@@ -486,5 +486,6 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-new CompileManager('main.js')
-new CompileManager('main.coffee.js') // in case there was a main.coffee
+// XXX: Make sure that each type of file has shared dep code splitting.
+new CompileManager('module.js')
+new CompileManager('module.coffee.js') // in case there was a main.coffee
