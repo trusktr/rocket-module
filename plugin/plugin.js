@@ -397,8 +397,8 @@ function getPackageInfo(packageName, packageVersion) {
  *
  * @class CompileManager
  */
-function CompileManager(extension) {
-    this.extension = extension
+function CompileManager(extentions) {
+    this.extentions = extentions
     this.init()
 }
 _.assign(CompileManager.prototype, {
@@ -428,17 +428,20 @@ _.assign(CompileManager.prototype, {
     },
 
     init: function init() {
-        Plugin.registerSourceHandler(this.extension, this.sourceHandler.bind(this))
+        _.forEach(this.extentions, function(extension) {
+            Plugin.registerSourceHandler(extension, this.sourceHandler.bind(this))
+        }.bind(this))
     },
 
     sourceHandler: function sourceHandler(compileStep) {
-        var modulesLink, modulesSource, output, files, fileMatch, tmpLocation,
-            appId, pathToConfig, config, webpackCompiler, webpackResult,
+        var modulesLink, modulesSource, output, tmpLocation, appId,
+            pathToConfig, config, webpackCompiler, webpackResult,
             currentPackage
 
         /*
          * Link the node_modules directory so modules can be resolved.
-         * TODO: Work entirely out of the /tmp folder instead of writing in the
+         *
+         * TODO: Work entirely in the /tmp folder instead of writing in the
          * currentPackage.
          */
         currentPackage = packageDir(compileStep)
@@ -486,6 +489,17 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-// XXX: Make sure that each type of file has shared dep code splitting.
-new CompileManager('module.js')
-new CompileManager('module.coffee.js') // in case there was a main.coffee
+// TODO: code splitting among all file types
+new CompileManager([
+    // also catches module.ts files compiled by mologie:typescript
+    'module.js',
+
+    // in case there was a module.coffee file compiled by coffeescript
+    'module.coffee.js',
+
+    // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
+    'module.ts.js',
+
+    // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
+    'module.ls.js'
+])
