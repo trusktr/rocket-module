@@ -19,6 +19,8 @@ var glob          = Npm.require('glob')
 var userHome      = Npm.require('user-home')
 var semver        = Npm.require('semver')
 
+var counter = 0
+
 /**
  * Get the current app's path.
  * See: https://github.com/meteor-velocity/meteor-internals/blob/e33c84d768af087f94a16820107c97bfc6c8a587/tools/files.js#L72
@@ -147,7 +149,7 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
-console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
+//console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
 
 function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
@@ -340,7 +342,15 @@ function getPackageInfo(packageName, packageVersion) {
     // exists locally and either the user didn't specify a version or the user
     // specified a version that happens to be the version of the local package
     //
-    // TODO: Handle same-name packages with different vendor names?
+    // TODO?: Handle packages that have the same package name but with the same
+    // vendor name since the folder names would be the same.
+    //
+    // TODO: For local packages, look in `.meteor/isopacks`/ instead of in
+    // `packages/`. The logic will then be the same as in `else` block of this
+    // conditional. This also eliminates the previous "TODO?". Perhaps keep
+    // this first logic for the `packages/` directory, then first look in the
+    // local `.meteor/local/isopacks/` before finally looking in
+    // `~/.meteor/packages/`.
     packageDotJsPath = path.resolve(appDir(), 'packages', packageLocalName, 'package.js')
     if (
         (fs.existsSync(packageDotJsPath) && !packageVersion) ||
@@ -434,6 +444,7 @@ _.assign(CompileManager.prototype, {
     },
 
     sourceHandler: function sourceHandler(compileStep) {
+        //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
         var modulesLink, modulesSource, output, tmpLocation, appId,
             pathToConfig, config, webpackCompiler, webpackResult,
             currentPackage
