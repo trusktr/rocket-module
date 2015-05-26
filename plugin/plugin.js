@@ -23,12 +23,12 @@ var counter = 0
 
 /**
  * Get the current app's path.
- * See: https://github.com/meteor-velocity/meteor-internals/blob/e33c84d768af087f94a16820107c97bfc6c8a587/tools/files.js#L72
+ * See: https://github.com/Sanjo/meteor-meteor-files-helpers/blob/71bbf71c1cae57657d79df4ac6c73defcdfe51d0/src/meteor_files_helpers.js#L11
  *
  * @return {string} The path to the application we are in.
  */
 function appDir() {
-    return VelocityMeteorInternals.files.findAppDir()
+    return MeteorFilesHelpers.getAppPath()
 }
 
 /**

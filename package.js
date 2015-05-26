@@ -12,7 +12,7 @@ Package.describe({
 
 Package.registerBuildPlugin({
     name: 'rocket:module',
-    use: ['meteor', 'velocity:meteor-internals@1.1.0_7'],
+    use: ['meteor', 'sanjo:meteor-files-helpers@1.1.0_4'],
     sources: ['plugin/plugin.js'],
     npmDependencies: {
         'webpack': '1.8.11',
