@@ -166,7 +166,7 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
-//console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
+console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
 //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
 
@@ -525,7 +525,7 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-//if (isAppBuild()) {
+if (isAppBuild()) {
     // TODO: code splitting among all bundles
     new CompileManager([
         // also catches module.ts files compiled by mologie:typescript
@@ -540,4 +540,4 @@ _.assign(CompileManager.prototype, {
         // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
         'module.ls.js'
     ])
-//}
+}
