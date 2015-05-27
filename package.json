@@ -1,3 +1,19 @@
 {
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "name": "rocket-module",
+  "description": "ES6 Modules for Meteor.",
+  "main": "module-tests.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trusktr/rocket-module"
+  },
+  "author": "Joseph Orbegoso Pea <joe@trusktr.io>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/trusktr/rocket-module/issues"
+  },
+  "homepage": "https://github.com/trusktr/rocket-module"
 }
