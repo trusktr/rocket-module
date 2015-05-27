@@ -107,6 +107,23 @@ function getInstalledPackages(explicitlyInstalled) {
 }
 
 /**
+ * @returns {boolean} Returns true if we're not running `meteor test-packages`
+ * or `meteor publish` which means this file is being executed during an app's
+ * build, not a package's build.
+ */
+function isAppBuild() {
+  var unAcceptableCommands = {'test-packages': 1, 'publish': 1};
+  if(process.argv.length > 2) {
+    var command = process.argv[2];
+    if(unAcceptableCommands[command]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * @typedef PackageInfo
  *
  * An object containing info about a package installed in the current
