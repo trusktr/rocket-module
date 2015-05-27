@@ -166,9 +166,17 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
+//console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
 //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
 
+/**
+ * @param {string} packageDotJsSource The source code of a given package.js file.
+ * @param {string} packagePath The path to a package.
+ *
+ * TODO: separate these concerns (getting the literal info from package.js vs
+ * combining that with the package path.
+ */
 function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
     var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
@@ -517,17 +525,19 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-// TODO: code splitting among all file types
-new CompileManager([
-    // also catches module.ts files compiled by mologie:typescript
-    'module.js',
+//if (isAppBuild()) {
+    // TODO: code splitting among all bundles
+    new CompileManager([
+        // also catches module.ts files compiled by mologie:typescript
+        'module.js',
 
-    // in case there was a module.coffee file compiled by coffeescript
-    'module.coffee.js',
+        // in case there was a module.coffee file compiled by coffeescript
+        'module.coffee.js',
 
-    // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
-    'module.ts.js',
+        // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
+        'module.ts.js',
 
-    // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
-    'module.ls.js'
-])
+        // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
+        'module.ls.js'
+    ])
+//}
