@@ -19,6 +19,11 @@ These steps are in the order that they'll be developed. *Semver rules won't
 apply until version 1.0.0.*
 
 ### v0.1.0
+- [ ] Move webpack into a separate Meteor package since it is a binary package,
+      then rocket:module doesn't need to be built for every architecture every
+      time it is updated.
+
+### v0.2.0
 - [ ] If this plugin provider script is running on the publish side, make the
       source handler simply comment out all the entrypoint codes of packages
       that use rocket:module.
@@ -49,7 +54,7 @@ apply until version 1.0.0.*
       one on a per architecture basis, and we also need to update each arch
       json file to contain the result files byte lengths.
 
-### v0.2.0
+### v0.3.0
 - [ ] Now we'll go back and modify the node_modules handling so that
       rocket:module will get all dependencies at once and handle code splitting.
       This item will be split into a series of steps once we ge here.
