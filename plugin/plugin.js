@@ -3,8 +3,7 @@
  * bundles. The code of the entrypoints can use module syntax (f.e. ES6, CJS,
  * or AMD). Currently the plugin uses Webpack to compile entrypoints.
  *
- * TODO: Make webpack watch files for changes while in dev mode? Or is this handled by Meteor
- * already?
+ * TODO: Make webpack watch files for changes while in dev mode?
  */
 
 // builtin modules
@@ -475,18 +474,6 @@ _.assign(CompileManager.prototype, {
             currentPackage
 
         /*
-         * Link the node_modules directory so modules can be resolved.
-         *
-         * TODO: Work entirely in the /tmp folder instead of writing in the
-         * currentPackage.
-         */
-        currentPackage = packageDir(compileStep)
-        modulesLink = path.resolve(currentPackage, 'node_modules')
-        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-        if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-        fs.symlinkSync(modulesSource, modulesLink)
-
-        /*
          * Choose a temporary output location that doesn't exist yet.
          * TODO: Get the app id (from .meteor/.id) a legitimate way.
          */
@@ -497,6 +484,18 @@ _.assign(CompileManager.prototype, {
         do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
         while ( fs.existsSync(output) )
         output = path.resolve(output, compileStep.pathForSourceMap)
+
+        /*
+         * Link the node_modules directory so modules can be resolved.
+         *
+         * TODO: Work entirely in the /tmp folder instead of creating the link
+         * inside the currentPackage.
+         */
+        currentPackage = packageDir(compileStep)
+        modulesLink = path.resolve(currentPackage, 'node_modules')
+        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+        if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+        fs.symlinkSync(modulesSource, modulesLink)
 
         /*
          * Extend the default Webpack configuration with the user's
@@ -525,7 +524,14 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-if (isAppBuild()) {
+// if we are in a publish build (using `meteor publish`)
+// TODO: This catches the test scenario too. We might need to handle that separately.
+if (!isAppBuild()) {
+}
+
+// other wise we're in an app build.
+else {
+
     // TODO: code splitting among all bundles
     new CompileManager([
         // also catches module.ts files compiled by mologie:typescript
