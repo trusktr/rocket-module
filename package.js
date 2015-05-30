@@ -15,7 +15,6 @@ Package.registerBuildPlugin({
     use: ['meteor', 'sanjo:meteor-files-helpers@1.1.0_4'],
     sources: ['plugin/plugin.js'],
     npmDependencies: {
-        'webpack': '1.8.11',
         'rndm': '1.1.0',
         'babel-loader': '5.0.0',
         'css-loader': '0.12.0',

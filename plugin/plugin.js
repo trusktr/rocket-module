@@ -12,11 +12,12 @@ var fs            = Npm.require('fs')
 
 // npmjs modules
 var rndm          = Npm.require('rndm')
-var webpack       = Npm.require('webpack')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
 var userHome      = Npm.require('user-home')
 var semver        = Npm.require('semver')
+
+var webpack       = Package['rocket:webpack'].Webpack
 
 var counter = 0
 
