@@ -19,7 +19,7 @@ These steps are in the order that they'll be developed. *Semver rules won't
 apply until version 1.0.0.*
 
 ### v0.1.0
-- [ ] Move webpack into a separate Meteor package since it is a binary package,
+- [x] Move webpack into a separate Meteor package since it is a binary package,
       then rocket:module doesn't need to be built for every architecture every
       time it is updated.
 
