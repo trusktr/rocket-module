@@ -468,61 +468,67 @@ _.assign(CompileManager.prototype, {
     },
 
     sourceHandler: function sourceHandler(compileStep) {
-        //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
-        var modulesLink, modulesSource, output, tmpLocation, appId,
-            pathToConfig, config, webpackCompiler, webpackResult,
-            currentPackage
-
-        /*
-         * Choose a temporary output location that doesn't exist yet.
-         * TODO: Get the app id (from .meteor/.id) a legitimate way.
-         */
-        tmpLocation = '/tmp'
-        appId = fs.readFileSync(
-            path.resolve(appDir(), '.meteor', '.id')
-        ).toString().trim().split('\n').slice(-1)[0]
-        do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
-        while ( fs.existsSync(output) )
-        output = path.resolve(output, compileStep.pathForSourceMap)
-
-        /*
-         * Link the node_modules directory so modules can be resolved.
-         *
-         * TODO: Work entirely in the /tmp folder instead of creating the link
-         * inside the currentPackage.
-         */
-        currentPackage = packageDir(compileStep)
-        modulesLink = path.resolve(currentPackage, 'node_modules')
-        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-        if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-        fs.symlinkSync(modulesSource, modulesLink)
-
-        /*
-         * Extend the default Webpack configuration with the user's
-         * configuration and get a Webpack compiler. Npm.require loads modules
-         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
-         * so we need to go back 5 dirs into the packagesDir then go into the
-         * target packageDir.
-         */
-        pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-            fileName(currentPackage), 'webpack.config.js')
-        config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-            Npm.require(pathToConfig) : {}
-        config = _.merge(this.defaultConfig(compileStep, output), config)
-        webpackCompiler = webpack(config)
-
-        /*
-         * Run the Webpack compiler synchronously and give the result back to Meteor.
-         */
-        webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-        compileStep.addJavaScript({
-            path: compileStep.inputPath,
-            data: fs.readFileSync(output).toString(),
-            sourcePath: compileStep.inputPath,
-            bare: true
-        })
     }
 })
+
+/**
+ * This will morph into the new batch handler...
+ */
+function batchHandler() {
+    //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
+    var modulesLink, modulesSource, output, tmpLocation, appId,
+        pathToConfig, config, webpackCompiler, webpackResult,
+        currentPackage
+
+    /*
+     * Choose a temporary output location that doesn't exist yet.
+     * TODO: Get the app id (from .meteor/.id) a legitimate way.
+     */
+    tmpLocation = '/tmp'
+    appId = fs.readFileSync(
+        path.resolve(appDir(), '.meteor', '.id')
+    ).toString().trim().split('\n').slice(-1)[0]
+    do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
+    while ( fs.existsSync(output) )
+    output = path.resolve(output, compileStep.pathForSourceMap)
+
+    /*
+     * Link the node_modules directory so modules can be resolved.
+     *
+     * TODO: Work entirely in the /tmp folder instead of creating the link
+     * inside the currentPackage.
+     */
+    currentPackage = packageDir(compileStep)
+    modulesLink = path.resolve(currentPackage, 'node_modules')
+    modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+    if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+    fs.symlinkSync(modulesSource, modulesLink)
+
+    /*
+     * Extend the default Webpack configuration with the user's
+     * configuration and get a Webpack compiler. Npm.require loads modules
+     * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
+     * so we need to go back 5 dirs into the packagesDir then go into the
+     * target packageDir.
+     */
+    pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+        fileName(currentPackage), 'webpack.config.js')
+    config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+        Npm.require(pathToConfig) : {}
+    config = _.merge(this.defaultConfig(compileStep, output), config)
+    webpackCompiler = webpack(config)
+
+    /*
+     * Run the Webpack compiler synchronously and give the result back to Meteor.
+     */
+    webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+    compileStep.addJavaScript({
+        path: compileStep.inputPath,
+        data: fs.readFileSync(output).toString(),
+        sourcePath: compileStep.inputPath,
+        bare: true
+    })
+}
 
 // if we are in a publish build (using `meteor publish`)
 // TODO: This catches the test scenario too. We might need to handle that separately.
