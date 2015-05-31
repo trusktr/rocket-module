@@ -16,9 +16,6 @@ Package.registerBuildPlugin({
     sources: ['plugin/plugin.js'],
     npmDependencies: {
         'rndm': '1.1.0',
-        'babel-loader': '5.0.0',
-        'css-loader': '0.12.0',
-        'style-loader': '0.12.1',
         'lodash': '3.8.0',
         'glob': '5.0.5',
         'user-home': '1.1.1',
