@@ -15,13 +15,21 @@ meteor add rocket:module
 Roadmap
 -------
 
-These steps are in the order that they'll be developed. *Semver rules won't
+These steps are mostly in the order that they'll be developed. *Semver rules won't
 apply until version 1.0.0.*
 
 ### v0.1.0
 - [x] Move webpack into a separate Meteor package since it is a binary package,
       then rocket:module doesn't need to be built for every architecture every
       time it is updated.
+
+### v0.1.1
+- [x] Move the css, style, and babel loaders into rocket:webpack too. This will
+      allow it to binary build along with Webpack. It's lame that we need to do
+      this.
+- [ ] Make rocket:module find the `npm/node_modules` folder of the
+      rocket:webpack isopack and add that to Webpack's config so that loaders can
+      be found by Webpack.
 
 ### v0.2.0
 - [ ] If this plugin provider script is running on the publish side, make the
