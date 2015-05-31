@@ -130,8 +130,8 @@ function isAppBuild() {
  * application. Besides the below described properties you'll also find the
  * properties that `Package.describe` accepts in it's first argument when the
  * package is found locally. Packages in ~/.meteor/packages don't have info
- * obtainable from a package.js file.
- * See http://docs.meteor.com/#/full/packagedescription
+ * obtainable from a package.js file.  See
+ * http://docs.meteor.com/#/full/packagedescription
  *
  * @type {Object}
  * @property {string} name The name of the package.
@@ -142,7 +142,8 @@ function isAppBuild() {
  */
 
 /**
- * Get a list of the packages depending on the named package in the current application.
+ * Get a list of the packages depending on the named package in the current
+ * application.
  *
  * @param {string} packageName The name of the package to check dependents for.
  * @return {Array.PackageInfo|null} An array of objects, each object containing
@@ -150,10 +151,12 @@ function isAppBuild() {
  * dependents are found.
  *
  * TODO: The result of this should instead be in the `dependents` key of the
- * result of `getPackageInfo()`. This means we'll have to take out the
- * logic for finding a package's dependencies out of the `getPackageInfo`
- * function into it's own `getPackageDependencies` function. We can then *not*
- * use `getPackageInfo` inside of this `getDependentsOf` function.
+ * result of `getPackageInfo()`. This means we'll have to take out the logic
+ * for finding a package's dependencies out of the `getPackageInfo` function
+ * into it's own `getPackageDependencies` function. We can then *not* use
+ * `getPackageInfo` inside of this `getDependentsOf` function so that we can
+ * use getDependentsOf inside of getPackageInfo and include that info in the
+ * result.
  */
 function getDependentsOf(packageName) {
     var packages = getInstalledPackages()
@@ -253,13 +256,17 @@ function isoOrUni(packagePath) {
     return null
 }
 
-// Get the dependencies from a cache package's os.json, web.browser.json,
-// or web.cordova.json files.
-//
-// TODO: Make this less naive. The result doesn't show which deps are for which
-// architectures, and assumes the versions are the same across
-// architectures. I made this for rocket:module only needed to detect if a
-// package uses rocket:module.
+/**
+ * Get the dependencies from an isopack's os.json, web.browser.json,
+ * and web.cordova.json files.
+ *
+ * @param {string} packagePath The path to the isopack.
+ *
+ * TODO: Make this less naive. The result doesn't show which deps are for which
+ * architectures, and assumes the versions are the same across
+ * architectures. I made this for rocket:module only needed to detect if a
+ * package uses rocket:module.
+ */
 function getDependenciesFromPlatformFiles(packagePath) {
     var platformFileNames = [
         'os.json',
@@ -269,11 +276,18 @@ function getDependenciesFromPlatformFiles(packagePath) {
 
     var dependencies = []
 
-    dependencies = _.map(platformFileNames, function(file) {
-        var info = JSON.parse(fs.readFileSync(path.join(packagePath, file)).toString())
-        return _.pick(info, 'uses')
-    })
+    // get the `uses` of each platform file.
+    dependencies = _.reduce(platformFileNames, function(result, file) {
+        var pathToFile = path.resolve(packagePath, file)
+        if (fs.existsSync(pathToFile)) {
+            var info = JSON.parse(fs.readFileSync(pathToFile).toString())
+            result.push(_.pick(info, 'uses'))
+        }
+        return result
+    }, dependencies)
 
+    // look at the `uses` array in any of the platform files to understand what's
+    // happening here. I'm sure this could be done a better way.
     dependencies = _.reduce(dependencies, function(result, usesObj) {
         return _.merge(result, usesObj, function(a, b) {
             if (_.isArray(a) && _.isArray(b)) {
@@ -281,7 +295,6 @@ function getDependenciesFromPlatformFiles(packagePath) {
             }
         })
     }, {})
-
     dependencies = _.map(dependencies.uses, function(use) {
         return use.package + (typeof use.constraint !== 'undefined' ? '@'+use.constraint : '')
     })
@@ -291,7 +304,7 @@ function getDependenciesFromPlatformFiles(packagePath) {
 
 // get PackageInfo from a package in the package cache (a package in the
 // ~/.meteor/packages).
-function getInfoFromCachePackage(packagePath) {
+function getInfoFromIsopack(packagePath) {
     var isoUniResult = isoOrUni(packagePath)
     var result = {}
     var dependencies = []
@@ -415,7 +428,7 @@ function getPackageInfo(packageName, packageVersion) {
                     foundVersion = semver.maxSatisfying(versions, '*')
 
                 if (foundVersion) {
-                    packageInfo = getInfoFromCachePackage(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
+                    packageInfo = getInfoFromIsopack(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
                 }
             }
         }
@@ -434,6 +447,8 @@ function getPackageInfo(packageName, packageVersion) {
  */
 function CompileManager(extentions) {
     this.extentions = extentions
+    this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').path, 'npm/node_modules')
+    console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
     this.init()
 }
 _.assign(CompileManager.prototype, {
@@ -458,6 +473,9 @@ _.assign(CompileManager.prototype, {
                     // TODO: get babel-loader working.
                     //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
                 ]
+            },
+            resolveLoader: {
+                root: [this.rocketWebpackNodeModules]
             }
         }
     },
@@ -469,67 +487,67 @@ _.assign(CompileManager.prototype, {
     },
 
     sourceHandler: function sourceHandler(compileStep) {
+    },
+
+    /**
+     * This will morph into the new batch handler...
+     */
+    batchHandler: function batchHandler() {
+        //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
+        var modulesLink, modulesSource, output, tmpLocation, appId,
+            pathToConfig, config, webpackCompiler, webpackResult,
+            currentPackage
+
+        /*
+         * Choose a temporary output location that doesn't exist yet.
+         * TODO: Get the app id (from .meteor/.id) a legitimate way.
+         */
+        tmpLocation = '/tmp'
+        appId = fs.readFileSync(
+            path.resolve(appDir(), '.meteor', '.id')
+        ).toString().trim().split('\n').slice(-1)[0]
+        do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
+        while ( fs.existsSync(output) )
+        output = path.resolve(output, compileStep.pathForSourceMap)
+
+        /*
+         * Link the node_modules directory so modules can be resolved.
+         *
+         * TODO: Work entirely in the /tmp folder instead of creating the link
+         * inside the currentPackage.
+         */
+        currentPackage = packageDir(compileStep)
+        modulesLink = path.resolve(currentPackage, 'node_modules')
+        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+        if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+        fs.symlinkSync(modulesSource, modulesLink)
+
+        /*
+         * Extend the default Webpack configuration with the user's
+         * configuration and get a Webpack compiler. Npm.require loads modules
+         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
+         * so we need to go back 5 dirs into the packagesDir then go into the
+         * target packageDir.
+         */
+        pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+            fileName(currentPackage), 'webpack.config.js')
+        config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+            Npm.require(pathToConfig) : {}
+        config = _.merge(this.defaultConfig(compileStep, output), config)
+        webpackCompiler = webpack(config)
+
+        /*
+         * Run the Webpack compiler synchronously and give the result back to Meteor.
+         */
+        webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+        compileStep.addJavaScript({
+            path: compileStep.inputPath,
+            data: fs.readFileSync(output).toString(),
+            sourcePath: compileStep.inputPath,
+            bare: true
+        })
     }
 })
-
-/**
- * This will morph into the new batch handler...
- */
-function batchHandler() {
-    //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
-    var modulesLink, modulesSource, output, tmpLocation, appId,
-        pathToConfig, config, webpackCompiler, webpackResult,
-        currentPackage
-
-    /*
-     * Choose a temporary output location that doesn't exist yet.
-     * TODO: Get the app id (from .meteor/.id) a legitimate way.
-     */
-    tmpLocation = '/tmp'
-    appId = fs.readFileSync(
-        path.resolve(appDir(), '.meteor', '.id')
-    ).toString().trim().split('\n').slice(-1)[0]
-    do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
-    while ( fs.existsSync(output) )
-    output = path.resolve(output, compileStep.pathForSourceMap)
-
-    /*
-     * Link the node_modules directory so modules can be resolved.
-     *
-     * TODO: Work entirely in the /tmp folder instead of creating the link
-     * inside the currentPackage.
-     */
-    currentPackage = packageDir(compileStep)
-    modulesLink = path.resolve(currentPackage, 'node_modules')
-    modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-    if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-    fs.symlinkSync(modulesSource, modulesLink)
-
-    /*
-     * Extend the default Webpack configuration with the user's
-     * configuration and get a Webpack compiler. Npm.require loads modules
-     * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
-     * so we need to go back 5 dirs into the packagesDir then go into the
-     * target packageDir.
-     */
-    pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-        fileName(currentPackage), 'webpack.config.js')
-    config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-        Npm.require(pathToConfig) : {}
-    config = _.merge(this.defaultConfig(compileStep, output), config)
-    webpackCompiler = webpack(config)
-
-    /*
-     * Run the Webpack compiler synchronously and give the result back to Meteor.
-     */
-    webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-    compileStep.addJavaScript({
-        path: compileStep.inputPath,
-        data: fs.readFileSync(output).toString(),
-        sourcePath: compileStep.inputPath,
-        bare: true
-    })
-}
 
 // if we are in a publish build (using `meteor publish`)
 // TODO: This catches the test scenario too. We might need to handle that separately.
@@ -538,6 +556,8 @@ if (!isAppBuild()) {
 
 // other wise we're in an app build.
 else {
+
+    console.log(' \n ------------- Creating a new CompileManager.\n')
 
     // TODO: code splitting among all bundles
     new CompileManager([
