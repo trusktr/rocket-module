@@ -27,7 +27,7 @@ apply until version 1.0.0.*
 - [x] Move the css, style, and babel loaders into rocket:webpack too. This will
       allow it to binary build along with Webpack. It's lame that we need to do
       this.
-- [ ] Make rocket:module find the `npm/node_modules` folder of the
+- [x] Make rocket:module find the `npm/node_modules` folder of the
       rocket:webpack isopack and add that to Webpack's config so that loaders can
       be found by Webpack.
 
