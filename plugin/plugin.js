@@ -25,17 +25,22 @@ var counter = 0
  * Get the current app's path.
  * See: https://github.com/Sanjo/meteor-meteor-files-helpers/blob/71bbf71c1cae57657d79df4ac6c73defcdfe51d0/src/meteor_files_helpers.js#L11
  *
- * @return {string} The path to the application we are in.
+ * @return {string|null} The path to the application we are in, or null if
+ * we're not in an application.
  */
 function appDir() {
     return MeteorFilesHelpers.getAppPath()
 }
 
 /**
- * Get the current app's packages directory.
+ * Get the current app's packages path, even if it doesn't actually exist.
+ *
+ * @return {string|null} Return the path as a string, or null if we're not in an app.
  */
 function packagesDir() {
-    return path.resolve(appDir(), 'packages')
+    var app = appDir()
+    if (app) return path.resolve(app, 'packages')
+    return null
 }
 
 /*
@@ -95,7 +100,9 @@ function fileName(fullPath) {
  */
 function getInstalledPackages(explicitlyInstalled) {
     var fileName = explicitlyInstalled ? 'packages' : 'versions'
-    var packagesFile = path.resolve(appDir(), '.meteor', fileName)
+    var app = appDir()
+    if (!app) throw new Error('getInstalledPackages is meant to be used while inside of a Meteor application.')
+    var packagesFile = path.resolve(app, '.meteor', fileName)
     var lines = getLines(packagesFile)
     lines = _.reduce(lines, function(result, line) {
         if (!line.match(/^#/) && line.length !== 0) {
@@ -169,6 +176,7 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
+console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
 console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
 //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
 //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
@@ -334,7 +342,9 @@ function getInfoFromIsopack(packagePath) {
  * XXX: Handle wrapper numbers? f.e. 0.2.3_3 with the underscore
  */
 function getInstalledVersion(packageName) {
-    var packagesFile = path.resolve(appDir(), '.meteor', 'versions')
+    var app = appDir()
+    if (!app) throw new Error('getInstalledVersion is meant to be used while inside of a Meteor application.')
+    var packagesFile = path.resolve(app, '.meteor', 'versions')
     var lines = getLines(packagesFile)
     var line = _.find(lines, function(line) {
         return line.match(new RegExp(packageName))
@@ -389,10 +399,11 @@ function getPackageInfo(packageName, packageVersion) {
     // this first logic for the `packages/` directory, then first look in the
     // local `.meteor/local/isopacks/` before finally looking in
     // `~/.meteor/packages/`.
-    packageDotJsPath = path.resolve(appDir(), 'packages', packageLocalName, 'package.js')
+    var app = appDir()
+    if (app) packageDotJsPath = path.resolve(app, 'packages', packageLocalName, 'package.js')
     if (
-        (fs.existsSync(packageDotJsPath) && !packageVersion) ||
-        (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
+        app && (fs.existsSync(packageDotJsPath) && !packageVersion) ||
+        app && (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
     ) {
         packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
         packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
@@ -498,13 +509,16 @@ _.assign(CompileManager.prototype, {
             pathToConfig, config, webpackCompiler, webpackResult,
             currentPackage
 
+        var app = appDir()
+        if (!app) throw new Error('batchHandler is meant to be used while inside of a Meteor application.')
+
         /*
          * Choose a temporary output location that doesn't exist yet.
          * TODO: Get the app id (from .meteor/.id) a legitimate way.
          */
         tmpLocation = '/tmp'
         appId = fs.readFileSync(
-            path.resolve(appDir(), '.meteor', '.id')
+            path.resolve(app, '.meteor', '.id')
         ).toString().trim().split('\n').slice(-1)[0]
         do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
         while ( fs.existsSync(output) )
@@ -551,13 +565,13 @@ _.assign(CompileManager.prototype, {
 
 // if we are in a publish build (using `meteor publish`)
 // TODO: This catches the test scenario too. We might need to handle that separately.
-if (!isAppBuild()) {
+if (!isAppBuild() || !appDir()) {
+    console.log(' --- Not in an app build or no appDir.')
 }
 
 // other wise we're in an app build.
 else {
-
-    console.log(' \n ------------- Creating a new CompileManager.\n')
+    console.log(' --- In an app build with an appDir. Creating a new CompileManager.')
 
     // TODO: code splitting among all bundles
     new CompileManager([
