@@ -501,6 +501,7 @@ _.assign(CompileManager.prototype, {
      * the batch handler can take over on the app-side.
      */
     sourceHandler: function sourceHandler(compileStep) {
+        console.log(' --- Executing source handler on file: ', compileStep.inputPath, '\n')
         compileStep.addJavaScript({
             path: compileStep.inputPath,
             data: "/* _____rocket_module_____:not-compiled*/\n"+compileStep.read().toString(),
@@ -586,13 +587,13 @@ var compileManager = new CompileManager([
     // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
     'module.ls.js'
 ])
+compileManager.initSourceHandlers()
 
 // if we are in a publish build (using `meteor publish`), we set up the source
 // handlers that will transform entry points by commenting them out.
 // TODO: This catches the test scenario too. We might need to handle the test scenarios too.
 if (!isAppBuild() || !appDir()) {
     console.log(' --- Not in an app build or no appDir.')
-    compileManager.initSourceHandlers()
 }
 
 // otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
