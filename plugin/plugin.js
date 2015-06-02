@@ -21,6 +21,20 @@ var webpack       = Package['rocket:webpack'].Webpack
 
 var counter = 0
 
+// override semver.valid so it includes Meteor underscore numbering, f.e. 0.3.4_3
+var oldValid = semver.valid
+semver.valid = function(version) {
+    var parts
+    if (typeof version == 'string') {
+        parts = version.split('_')
+        // if we have a valid semver, or a valid semver with an underscore
+        // number suffix.
+        if (oldValid(version) || (oldValid(parts[0]) && parts[1] && parts[1].match(/^\d*$/)))
+            return true
+    }
+    return false
+}
+
 /**
  * Get the current app's path.
  * See: https://github.com/Sanjo/meteor-meteor-files-helpers/blob/71bbf71c1cae57657d79df4ac6c73defcdfe51d0/src/meteor_files_helpers.js#L11
