@@ -460,7 +460,6 @@ function CompileManager(extentions) {
     this.extentions = extentions
     this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').path, 'npm/node_modules')
     console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
-    this.init()
 }
 _.assign(CompileManager.prototype, {
     constructor: CompileManager,
@@ -491,13 +490,23 @@ _.assign(CompileManager.prototype, {
         }
     },
 
-    init: function init() {
+    initSourceHandlers: function initSourceHandlers() {
         _.forEach(this.extentions, function(extension) {
             Plugin.registerSourceHandler(extension, this.sourceHandler.bind(this))
         }.bind(this))
     },
 
+    /**
+     * This source handler simply marks entry points as in need of handling so
+     * the batch handler can take over on the app-side.
+     */
     sourceHandler: function sourceHandler(compileStep) {
+        compileStep.addJavaScript({
+            path: compileStep.inputPath,
+            data: "/* _____rocket_module_____:not-compiled*/\n"+compileStep.read().toString(),
+            sourcePath: compileStep.inputPath,
+            bare: true
+        })
     },
 
     /**
@@ -563,28 +572,30 @@ _.assign(CompileManager.prototype, {
     }
 })
 
-// if we are in a publish build (using `meteor publish`)
-// TODO: This catches the test scenario too. We might need to handle that separately.
+// TODO: code splitting among all bundles
+var compileManager = new CompileManager([
+    // also catches module.ts files compiled by mologie:typescript
+    'module.js',
+
+    // in case there was a module.coffee file compiled by coffeescript
+    'module.coffee.js',
+
+    // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
+    'module.ts.js',
+
+    // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
+    'module.ls.js'
+])
+
+// if we are in a publish build (using `meteor publish`), we set up the source
+// handlers that will transform entry points by commenting them out.
+// TODO: This catches the test scenario too. We might need to handle the test scenarios too.
 if (!isAppBuild() || !appDir()) {
     console.log(' --- Not in an app build or no appDir.')
+    compileManager.initSourceHandlers()
 }
 
-// other wise we're in an app build.
+// otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
 else {
-    console.log(' --- In an app build with an appDir. Creating a new CompileManager.')
-
-    // TODO: code splitting among all bundles
-    new CompileManager([
-        // also catches module.ts files compiled by mologie:typescript
-        'module.js',
-
-        // in case there was a module.coffee file compiled by coffeescript
-        'module.coffee.js',
-
-        // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
-        'module.ts.js',
-
-        // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
-        'module.ls.js'
-    ])
+    console.log(' --- In an app build with an appDir.')
 }
