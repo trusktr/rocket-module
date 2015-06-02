@@ -587,7 +587,11 @@ var compileManager = new CompileManager([
     // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
     'module.ls.js'
 ])
+
+// handle all files with the source handler. It simply prepends a comment to
+// files, on both publish and app side.
 compileManager.initSourceHandlers()
+console.log(' --- Added the source handlers! ')
 
 // if we are in a publish build (using `meteor publish`), we set up the source
 // handlers that will transform entry points by commenting them out.
