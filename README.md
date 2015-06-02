@@ -32,8 +32,12 @@ apply until version 1.0.0.*
       be found by Webpack.
 
 ### v0.2.0
-- [ ] If this plugin provider script is running on the publish side, make the
-      source handler simply comment that the files are in need of compiling.
+- [ ] If this plugin provider script is running on the publish side, or on the
+      app side for compiling a local package, make the source handler simply
+      comment that the files are in need of compiling.
+- [ ] Detect and count how many files need to be compiled on the app side for
+      local packages, then add a hook that allows a function to run once local
+      package files have been compiled.
 - [ ] When this plugin provider script is running on the app side, we won't
       use a source handler any more. We'll have to take out the webpack from
       the current source handler and use it in our own function that runs at
