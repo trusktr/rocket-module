@@ -32,9 +32,8 @@ apply until version 1.0.0.*
       be found by Webpack.
 
 ### v0.2.0
-- [ ] If this plugin provider script is running on the publish side, or on the
-      app side but only for compiling local packages and not the application, make
-      the source handler simply comment that the files are in need of compiling.
+- [ ] Make the rocket:module's source handler simply prepend a comment that the
+      file is in need of compiling.
 - [ ] Detect and count how many files need to be compiled on the app side for
       local packages and the app itself, then add a hook that allows a function to
       run once local files have been handled by the source handler. This won't be
