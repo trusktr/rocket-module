@@ -33,8 +33,7 @@ apply until version 1.0.0.*
 
 ### v0.2.0
 - [ ] If this plugin provider script is running on the publish side, make the
-      source handler simply comment out all the entrypoint codes of packages
-      that use rocket:module.
+      source handler simply comment that the files are in need of compiling.
 - [ ] When this plugin provider script is running on the app side, we won't
       use a source handler any more. We'll have to take out the webpack from
       the current source handler and use it in our own function that runs at
