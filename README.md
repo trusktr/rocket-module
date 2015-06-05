@@ -31,6 +31,10 @@ apply until version 1.0.0.*
       rocket:webpack isopack and add that to Webpack's config so that loaders can
       be found by Webpack.
 
+### v0.1.2
+- [ ] Override semver methods so they work with Meteor versions, or use Meteor's
+      package-version-parser package that has some similar functions.
+
 ### v0.2.0
 - [ ] Make the rocket:module's source handler simply prepend a comment that the
       file is in need of compiling.
