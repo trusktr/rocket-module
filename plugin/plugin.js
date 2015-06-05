@@ -275,6 +275,10 @@ function isoOrUni(packagePath) {
  * architectures, and assumes the versions are the same across
  * architectures. I made this for rocket:module only needed to detect if a
  * package uses rocket:module.
+ *
+ * XXX: Do we need to consider if diferent package versions are used for
+ * different architectures? This function currently assumes a that only one
+ * version of a package is used regardless of architecture.
  */
 function getDependenciesFromPlatformFiles(packagePath) {
     var platformFileNames = [
@@ -285,26 +289,18 @@ function getDependenciesFromPlatformFiles(packagePath) {
 
     var dependencies = []
 
-    // get the `uses` of each platform file.
+    // get the `uses` array of each platform file and merge them together uniquely.
     dependencies = _.reduce(platformFileNames, function(result, file) {
         var pathToFile = path.resolve(packagePath, file)
         if (fs.existsSync(pathToFile)) {
             var info = JSON.parse(fs.readFileSync(pathToFile).toString())
-            result.push(_.pick(info, 'uses'))
+            result = _.unique(_.union(result, info.uses), 'package')
         }
         return result
     }, dependencies)
 
-    // look at the `uses` array in any of the platform files to understand what's
-    // happening here. I'm sure this could be done a better way.
-    dependencies = _.reduce(dependencies, function(result, usesObj) {
-        return _.merge(result, usesObj, function(a, b) {
-            if (_.isArray(a) && _.isArray(b)) {
-                return _.unique(_.union(a, b), 'package')
-            }
-        })
-    }, {})
-    dependencies = _.map(dependencies.uses, function(use) {
+    // convert each use into a package constraint string.
+    dependencies = _.map(dependencies, function(use) {
         return use.package + (typeof use.constraint !== 'undefined' ? '@'+use.constraint : '')
     })
 
