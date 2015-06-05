@@ -32,7 +32,7 @@ apply until version 1.0.0.*
       be found by Webpack.
 
 ### v0.1.2
-- [ ] Override semver methods so they work with Meteor versions, or use Meteor's
+- [x] ~~Override semver methods so they work with Meteor versions~~, or use Meteor's
       package-version-parser package that has some similar functions.
 
 ### v0.2.0

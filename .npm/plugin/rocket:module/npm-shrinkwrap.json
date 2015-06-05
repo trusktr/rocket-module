@@ -49,9 +49,6 @@
     "rndm": {
       "version": "1.1.0"
     },
-    "semver": {
-      "version": "4.3.4"
-    },
     "user-home": {
       "version": "1.1.1"
     }

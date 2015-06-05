@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.1.1_1',
+    version: '0.1.2',
     // Brief, one-line summary of the package.
     summary: 'ES6 Modules for Meteor. (And CJS/AMD too!)',
     // URL to the Git repository containing the source code for this package.
@@ -12,14 +12,18 @@ Package.describe({
 
 Package.registerBuildPlugin({
     name: 'rocket:module',
-    use: ['meteor', 'sanjo:meteor-files-helpers@1.1.0_6', 'rocket:webpack@1.9.10'],
+    use: [
+        'meteor',
+        'sanjo:meteor-files-helpers@1.1.0_6',
+        'rocket:webpack@1.9.10',
+        'package-version-parser@3.0.3'
+    ],
     sources: ['plugin/plugin.js'],
     npmDependencies: {
         'rndm': '1.1.0',
         'lodash': '3.8.0',
         'glob': '5.0.5',
-        'user-home': '1.1.1',
-        'semver': '4.3.4'
+        'user-home': '1.1.1'
     }
 })
 

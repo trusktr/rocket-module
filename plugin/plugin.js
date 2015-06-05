@@ -6,34 +6,21 @@
  * TODO: Make webpack watch files for changes while in dev mode?
  */
 
-// builtin modules
+// npm builtin modules
 var path          = Npm.require('path')
 var fs            = Npm.require('fs')
 
-// npmjs modules
+// npm modules
 var rndm          = Npm.require('rndm')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
 var userHome      = Npm.require('user-home')
-var semver        = Npm.require('semver')
 
-var webpack       = Package['rocket:webpack'].Webpack
+// Meteor package imports
+var webpack        = Package['rocket:webpack'].Webpack
+var PackageVersion = Package['package-version-parser'].PackageVersion
 
 var counter = 0
-
-// override semver.valid so it includes Meteor underscore numbering, f.e. 0.3.4_3
-var oldValid = semver.valid
-semver.valid = function(version) {
-    var parts
-    if (typeof version == 'string') {
-        parts = version.split('_')
-        // if we have a valid semver, or a valid semver with an underscore
-        // number suffix.
-        if (oldValid(version) || (oldValid(parts[0]) && parts[1] && parts[1].match(/^\d*$/)))
-            return true
-    }
-    return false
-}
 
 /**
  * Get the current app's path.
@@ -190,10 +177,10 @@ function getDependentsOf(packageName) {
     }, [])
 }
 
-console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
-console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
+//console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
+//console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
 //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
-//console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:module'))
+console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
 
 /**
  * @param {string} packageDotJsSource The source code of a given package.js file.
@@ -417,7 +404,8 @@ function getPackageInfo(packageName, packageVersion) {
     if (app) packageDotJsPath = path.resolve(app, 'packages', packageLocalName, 'package.js')
     if (
         app && (fs.existsSync(packageDotJsPath) && !packageVersion) ||
-        app && (fs.existsSync(packageDotJsPath) && packageVersion && semver.eq(getInstalledVersion(packageName), packageVersion))
+        app && (fs.existsSync(packageDotJsPath) && packageVersion &&
+                    PackageVersion.compare(getInstalledVersion(packageName), packageVersion) === 0)
     ) {
         packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
         packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
@@ -435,22 +423,27 @@ function getPackageInfo(packageName, packageVersion) {
         packagePath = path.join(userHome, '.meteor/packages', packageCacheName)
         if (fs.existsSync(packagePath)) {
 
-            // Get the valid semver versions.
+            // Get the valid versions.
             versions = path.join(userHome, '.meteor/packages', packageCacheName, '*')
             versions = glob.sync(versions)
             versions = _.reduce(versions, function(result, versionPath) {
                 var version = fileName(versionPath)
-                if (semver.valid(version)) result.push(version)
+                var isValidVersion
+                try { isValidVersion = PackageVersion.getValidServerVersion(version) } catch (e) {}
+                if (isValidVersion) result.push(version)
                 return result
             }, [])
 
             // If any versions exist, find the specified version, or find the
-            // maximum version if a specific version wasn't specified.
+            // maximum version if a specific version wasn't specified. No
+            // version is found if a version is specified but doesn't exist.
             if (versions.length > 0) {
                 if (packageVersion && _.contains(versions, packageVersion))
                     foundVersion = packageVersion
                 else if (!packageVersion)
-                    foundVersion = semver.maxSatisfying(versions, '*')
+                    foundVersion = _.max(versions, function(version) {
+                        return PackageVersion.versionMagnitude(version)
+                    })
 
                 if (foundVersion) {
                     packageInfo = getInfoFromIsopack(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
