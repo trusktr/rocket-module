@@ -38,6 +38,7 @@ apply until version 1.0.0.*
 ### v0.2.0
 - [x] Make rocket:module's source handler simply prepend a comment that the
       file is in need of compiling.
+- [ ] Remove the package.js parsing and use only isopacks? Get api.addFiles files.
 - [ ] Detect and count how many files need to be compiled on the app side for
       local packages and the app itself, then add a hook that allows a function to
       run once local files have been handled by the source handler. This won't be
@@ -75,6 +76,7 @@ apply until version 1.0.0.*
       This item will be split into a series of steps once we ge here.
 
 ### v1.0.0
-- [ ] Fine tune anything? Make sure final API is carefully chosen.
+- [ ] Finish commented TODOs.
+- [ ] Fine tune anything? Finalize configuration API.
 - [ ] Update README with usage and configuration documentation.
-- [ ] Release v1.0.0
+- [ ] Celebrate! Wooooo!

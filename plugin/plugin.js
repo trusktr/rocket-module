@@ -44,7 +44,7 @@ function packagesDir() {
     return null
 }
 
-/*
+/**
  * This is how to get to the packages folder of an app from the
  * node_modules folder of a locally installed package.
  *
@@ -54,9 +54,13 @@ function packagesDir() {
  * `Npm.require` devs' codes relative to their packages since the normal
  * `require` isn't available.
  *
+ * @return {string} The relative path back to `packages/`.
+ *
  * TODO: How do we get to the packages directory of an app if we're not in a
  * local package node_modules folder? It might depend on the 'official' way of
  * getting the app path if it exists.
+ *
+ * XXX: This will be removed when we make the custom handling of npm modules.
  */
 function packagesDirRelativeToNodeModules() {
     return '../../../../..'
@@ -66,6 +70,7 @@ function packagesDirRelativeToNodeModules() {
  * Returns the path of the package in the given CompileStep.
  *
  * @param {CompileStep} compileStep The given CompileStep.
+ * @return {string} The path to the package.
  */
 function packageDir(compileStep) {
     return path.resolve(compileStep.fullInputPath.replace(compileStep.inputPath, ''))
@@ -73,6 +78,7 @@ function packageDir(compileStep) {
 
 /**
  * Get the lines of a file as an array.
+ *
  * @param {string} file A file to read.
  * @return {Array.string} An array of the lines in the file.
  */
@@ -83,11 +89,11 @@ function getLines(file) {
 /**
  * Get the last part of a path (the file name).
  *
- * @param {string} path A path to a file.
+ * @param {string} filePath A path to a file.
  * @return {string} The file name.
  */
-function fileName(fullPath) {
-    var parts = fullPath.split(path.sep)
+function fileName(filePath) {
+    var parts = filePath.split(path.sep)
     return parts[parts.length-1]
 }
 
@@ -95,6 +101,8 @@ function fileName(fullPath) {
  * Get a list of installed packages in the current application. If
  * explicitlyInstalled is truthy, then only explicitly installed package names
  * are returned.
+ *
+ * TODO: Return package constraint strings when explicitlyInstalled is true.
  *
  * @param {boolean} [explicitlyInstalled] If true, get only explicitly installed packages.
  * @return {Array.string} An array of package names.
@@ -105,13 +113,14 @@ function getInstalledPackages(explicitlyInstalled) {
     if (!app) throw new Error('getInstalledPackages is meant to be used while inside of a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', fileName)
     var lines = getLines(packagesFile)
-    lines = _.reduce(lines, function(result, line) {
+    var packages = []
+    packages = _.reduce(lines, function(result, line) {
         if (!line.match(/^#/) && line.length !== 0) {
             result.push(line.split('@')[0])
         }
         return result
-    }, [])
-    return lines
+    }, packages)
+    return packages
 }
 
 /**
@@ -183,14 +192,18 @@ function getDependentsOf(packageName) {
 console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
 
 /**
+ * Get info about a package given it's package.js source.
+ *
  * @param {string} packageDotJsSource The source code of a given package.js file.
  * @param {string} packagePath The path to a package.
+ * @return {Object} A subset of the PackageInfo type that includes the `path` and
+ * `dependencies` keys.
  *
- * TODO: separate these concerns (getting the literal info from package.js vs
- * combining that with the package path.
+ * TODO: Don't add packagePath here, add it externally with _.assign.
  */
-function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
+function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
+    var apiDotAddFilesRegex = /api\s*\.\s*addFiles\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
     var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
     var stringRegex = /['"][^'"]*['"]/g
     var objectRegex = /{[^{}]*}/
@@ -228,17 +241,21 @@ function parseInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     })
 }
 
-// Get the JSON result from isopack.json if it exists, then
-// unipackage.json if it exists, otherwise null if neither
-// exist.
-//
-function isoOrUni(packagePath) {
-    var isoUniPath = path.join(packagePath, 'isopack.json')
+/**
+ * Given an isopack, get the JSON result from isopack.json if it exists, then
+ * unipackage.json if it exists, otherwise null if neither exist.
+ *
+ * @param {string} isopackPath The path to an isopack.
+ * @return {Object|null} The JSON.parsed result, or null if the files are not
+ * found.
+ */
+function isoOrUni(isopackPath) {
+    var isoUniPath = path.join(isopackPath, 'isopack.json')
     var result
 
     // if the isopack.json path doesn't exist
     if (!fs.existsSync(isoUniPath))
-        isoUniPath = path.join(packagePath, 'unipackage.json')
+        isoUniPath = path.join(isopackPath, 'unipackage.json')
 
     // if the unipackage.json path doesn't exist
     if (!fs.existsSync(isoUniPath))
@@ -269,18 +286,17 @@ function isoOrUni(packagePath) {
  * Get the dependencies from an isopack's os.json, web.browser.json,
  * and web.cordova.json files.
  *
- * @param {string} packagePath The path to the isopack.
+ * @param {string} isopackPath The path to an isopack.
+ * @return {array} An array of package constraint strings being the
+ * dependencies of the given isopack.
  *
- * TODO: Make this less naive. The result doesn't show which deps are for which
+ * XXX: Make this less naive? The result doesn't show which deps are for which
  * architectures, and assumes the versions are the same across
- * architectures. I made this for rocket:module only needed to detect if a
- * package uses rocket:module.
+ * architectures.
  *
- * XXX: Do we need to consider if diferent package versions are used for
- * different architectures? This function currently assumes a that only one
- * version of a package is used regardless of architecture.
+ * XXX: Do we have to handle specific architectures like "os.linux"?
  */
-function getDependenciesFromPlatformFiles(packagePath) {
+function getDependenciesFromPlatformFiles(isopackPath) {
     var platformFileNames = [
         'os.json',
         'web.browser.json',
@@ -291,7 +307,7 @@ function getDependenciesFromPlatformFiles(packagePath) {
 
     // get the `uses` array of each platform file and merge them together uniquely.
     dependencies = _.reduce(platformFileNames, function(result, file) {
-        var pathToFile = path.resolve(packagePath, file)
+        var pathToFile = path.resolve(isopackPath, file)
         if (fs.existsSync(pathToFile)) {
             var info = JSON.parse(fs.readFileSync(pathToFile).toString())
             result = _.unique(_.union(result, info.uses), 'package')
@@ -307,22 +323,30 @@ function getDependenciesFromPlatformFiles(packagePath) {
     return dependencies
 }
 
-// get PackageInfo from a package in the package cache (a package in the
-// ~/.meteor/packages).
-function getInfoFromIsopack(packagePath) {
-    var isoUniResult = isoOrUni(packagePath)
+/**
+ * Get PackageInfo from an isopack (usually a package in the global
+ * ~/.meteor/packages directory or application's .meteor/local/isopacks
+ * directory).
+ *
+ * @param {string} isopackPath The path to an isopack.
+ * @return {Object} A subset of the PackageInfo type that includes the `path` and
+ * `dependencies` keys.
+ *
+ * TODO: Don't add packagePath here, add it externally with _.assign.
+ */
+function getInfoFromIsopack(isopackPath) {
+    var isoUniResult = isoOrUni(isopackPath)
     var result = {}
     var dependencies = []
-
 
     if (isoUniResult) {
         result = _.assign(result, _.pick(isoUniResult, 'name', 'summary', 'version'))
     }
 
-    dependencies = getDependenciesFromPlatformFiles(packagePath)
+    dependencies = getDependenciesFromPlatformFiles(isopackPath)
 
     result = _.assign(result, {
-        path: packagePath,
+        path: isopackPath,
         dependencies: dependencies
     })
 
@@ -404,7 +428,7 @@ function getPackageInfo(packageName, packageVersion) {
                     PackageVersion.compare(getInstalledVersion(packageName), packageVersion) === 0)
     ) {
         packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
-        packageInfo = parseInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
+        packageInfo = getInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+fileName(packageDotJsPath), ''))
     }
 
     // Otherwise check ~/.meteor/packages, and either find the package with the
@@ -465,20 +489,29 @@ function CompileManager(extentions) {
     console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
 }
 _.assign(CompileManager.prototype, {
+
+    /**
+     * @param {Array.string} extentions An array of files extensions
+     * determining which files the CompileManager will handle.
+     */
     constructor: CompileManager,
 
     /**
      * Get the default configuration.
      *
+     * @param {CompileStep} compileStep A compileStep needed to get info for
+     * the current file.
+     * @param {string} outputFile The output file. TODO: The logic can be moved
+     * into here using the compileStep.
      * @return {Object} Returns the default configuration used in the source
      * handler. Currently it's a Webpack configuration object.
      */
-    defaultConfig: function defaultConfig(compileStep, output) {
+    defaultConfig: function defaultConfig(compileStep, outputFile) {
         return {
             entry: compileStep.fullInputPath
                 .replace(/\.[A-Za-z]*$/, ''), // remove the extension
             output: {
-                filename: output
+                filename: outputFile
             },
             module: {
                 loaders: [
@@ -493,6 +526,9 @@ _.assign(CompileManager.prototype, {
         }
     },
 
+    /**
+     * Sets up the source handlers for rocket:module's build plugin.
+     */
     initSourceHandlers: function initSourceHandlers() {
         _.forEach(this.extentions, function(extension) {
             Plugin.registerSourceHandler(extension, this.sourceHandler.bind(this))
@@ -502,6 +538,8 @@ _.assign(CompileManager.prototype, {
     /**
      * This source handler simply marks entry points as in need of handling so
      * the batch handler can take over on the app-side.
+     *
+     * See https://github.com/meteor/meteor/wiki/CompileStep-API-for-Build-Plugin-Source-Handlers
      */
     sourceHandler: function sourceHandler(compileStep) {
         console.log(' --- Executing source handler on file: ', compileStep.inputPath, '\n')
@@ -555,6 +593,9 @@ _.assign(CompileManager.prototype, {
          * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
          * so we need to go back 5 dirs into the packagesDir then go into the
          * target packageDir.
+         *
+         * TODO: Move the Npm.require here to the top of the file, for ES6
+         * Module compatibility.
          */
         pathToConfig = path.join(packagesDirRelativeToNodeModules(),
             fileName(currentPackage), 'webpack.config.js')
@@ -575,6 +616,17 @@ _.assign(CompileManager.prototype, {
         })
     }
 })
+
+/**
+ * Get a list of all the modules that need to be compiled in the current app
+ * and it's local packages.
+ *
+ * @return {Array} An array containing a list of all the modules (paths) that
+ * need to be compiled.
+ */
+function getAllModules() {
+    return []
+}
 
 // TODO: code splitting among all bundles
 var compileManager = new CompileManager([
