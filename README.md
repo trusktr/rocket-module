@@ -36,7 +36,7 @@ apply until version 1.0.0.*
       package-version-parser package that has some similar functions.
 
 ### v0.2.0
-- [ ] Make the rocket:module's source handler simply prepend a comment that the
+- [x] Make rocket:module's source handler simply prepend a comment that the
       file is in need of compiling.
 - [ ] Detect and count how many files need to be compiled on the app side for
       local packages and the app itself, then add a hook that allows a function to
