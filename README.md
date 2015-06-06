@@ -38,15 +38,25 @@ apply until version 1.0.0.*
 ### v0.2.0
 - [x] Make rocket:module's source handler simply prepend a comment that the
       file is in need of compiling.
-- [ ] Remove the package.js parsing and use only isopacks? Get api.addFiles files.
+- [x] Detect if the build plugin provider script is running for the first time
+      at the initial execution of the meteor command, or if it's running due to a file
+      change.
 - [ ] Detect and count how many files need to be compiled on the app side for
       local packages and the app itself, then add a hook that allows a function to
       run once local files have been handled by the source handler. This won't be
       needed once Plugin.registerBatchHandler is released (I think).
+  - [ ] If the plugin provider is running for the first time (the meteor command was just
+        executed) then get the local dependents of rocket:module, and based on that
+        determine how many times the source handler will execute (once for each module.js
+        in the app, and once for each module.js in each local package).
+  - [ ] If the plugin provider is running due to a file change, use the first execution of
+        the source handler to detect what package (including the app itself) is being
+        recompiled, then based on that find out know how many source handler executions
+        are left.
 - [ ] When this plugin provider script is running on the app side, we won't
       use a source handler any more. We'll have to take out the webpack from
       the current source handler and use it in our own function that runs at
-      this time. Define a new batch handler method for the CompileManager
+      this time. Define the new batch handler method for the CompileManager
       class.
 - [ ] In the batch handler, choose a new temporary location to handle the
       output of all the entry points all at once on a per-batch basis instead

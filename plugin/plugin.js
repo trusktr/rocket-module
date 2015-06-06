@@ -484,6 +484,7 @@ function getPackageInfo(packageName, packageVersion) {
  * @class CompileManager
  */
 function CompileManager(extentions) {
+    this.handledSourceCount = 0
     this.extentions = extentions
     this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').path, 'npm/node_modules')
     console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
@@ -549,6 +550,8 @@ _.assign(CompileManager.prototype, {
             sourcePath: compileStep.inputPath,
             bare: true
         })
+        this.handledSourceCount += 1
+        console.log(' -------- handled source count: ', this.handledSourceCount)
     },
 
     /**
@@ -618,13 +621,15 @@ _.assign(CompileManager.prototype, {
 })
 
 /**
- * Get a list of all the modules that need to be compiled in the current app
- * and it's local packages.
+ * Get a list of all the modules in the current app and it's local packages
+ * that need to be handled by rocket:module's source handler.
  *
- * @return {Array} An array containing a list of all the modules (paths) that
- * need to be compiled.
+ * @return {Array} An array containing a list of all the modules (paths).
  */
-function getAllModules() {
+function getUnhandledSources() {
+    var app = appDir()
+    if (!app) throw new Error('getUnhandledSources is meant to be used while inside of a Meteor application.')
+
     return []
 }
 
@@ -658,4 +663,10 @@ if (!isAppBuild() || !appDir()) {
 // otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
 else {
     console.log(' --- In an app build with an appDir.')
+}
+
+// Add this to the `process` so we can detect first runs vs re-builds after file
+// changes.
+if (!process['rocket:module first run complete']) {
+    process['rocket:module first run complete'] = true
 }
