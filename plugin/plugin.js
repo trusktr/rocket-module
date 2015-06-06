@@ -9,18 +9,18 @@
 // npm builtin modules
 var path          = Npm.require('path')
 var fs            = Npm.require('fs')
+var child_process = Npm.require('child_process')
 
 // npm modules
 var rndm          = Npm.require('rndm')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
 var userHome      = Npm.require('user-home')
+var fse           = Npm.require('fs-extra')
 
 // Meteor package imports
 var webpack        = Package['rocket:webpack'].Webpack
 var PackageVersion = Package['package-version-parser'].PackageVersion
-
-var counter = 0
 
 /**
  * Get the current app's path.
@@ -176,6 +176,8 @@ function isAppBuild() {
  * result.
  */
 function getDependentsOf(packageName) {
+    var app = appDir()
+    if (!app) throw new Error('getDependentsOf is meant to be used while inside of a Meteor application.')
     var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
@@ -185,11 +187,6 @@ function getDependentsOf(packageName) {
         return result
     }, [])
 }
-
-//console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
-//console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
-//console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
-console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
 
 /**
  * Get info about a package given it's package.js source.
@@ -405,7 +402,7 @@ function getPackageInfo(packageName, packageVersion) {
 
     // If the package is made by MDG, it has no username or organization prefix (vendor name).
     var packageLocalName = nameParts[nameParts.length === 1 ? 0 : 1]
-    var packageCacheName = nameParts.join('_')
+    var packageIsopackName = nameParts.join('_')
 
     // First check the app's local packages directory. If the package
     // exists locally and either the user didn't specify a version or the user
@@ -440,11 +437,11 @@ function getPackageInfo(packageName, packageVersion) {
     else {
 
         // If the package exists in ~/.meteor/packages
-        packagePath = path.join(userHome, '.meteor/packages', packageCacheName)
+        packagePath = path.join(userHome, '.meteor/packages', packageIsopackName)
         if (fs.existsSync(packagePath)) {
 
             // Get the valid versions.
-            versions = path.join(userHome, '.meteor/packages', packageCacheName, '*')
+            versions = path.join(userHome, '.meteor/packages', packageIsopackName, '*')
             versions = glob.sync(versions)
             versions = _.reduce(versions, function(result, versionPath) {
                 var version = fileName(versionPath)
@@ -466,7 +463,7 @@ function getPackageInfo(packageName, packageVersion) {
                     })
 
                 if (foundVersion) {
-                    packageInfo = getInfoFromIsopack(path.join(userHome, '.meteor/packages', packageCacheName, foundVersion))
+                    packageInfo = getInfoFromIsopack(path.join(userHome, '.meteor/packages', packageIsopackName, foundVersion))
                 }
             }
         }
@@ -558,7 +555,6 @@ _.assign(CompileManager.prototype, {
      * This will morph into the new batch handler...
      */
     batchHandler: function batchHandler() {
-        //console.log('\n ********************************* ', counter++, compileStep.fullInputPath)
         var modulesLink, modulesSource, output, tmpLocation, appId,
             pathToConfig, config, webpackCompiler, webpackResult,
             currentPackage
@@ -633,40 +629,70 @@ function getUnhandledSources() {
     return []
 }
 
-// TODO: code splitting among all bundles
-var compileManager = new CompileManager([
-    // also catches module.ts files compiled by mologie:typescript
-    'module.js',
-
-    // in case there was a module.coffee file compiled by coffeescript
-    'module.coffee.js',
-
-    // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
-    'module.ts.js',
-
-    // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
-    'module.ls.js'
-])
-
-// handle all files with the source handler. It simply prepends a comment to
-// files, on both publish and app side.
-compileManager.initSourceHandlers()
-console.log(' --- Added the source handlers! ')
-
-// if we are in a publish build (using `meteor publish`), we set up the source
-// handlers that will transform entry points by commenting them out.
-// TODO: This catches the test scenario too. We might need to handle the test scenarios too.
-if (!isAppBuild() || !appDir()) {
-    console.log(' --- Not in an app build or no appDir.')
+/**
+ * @param {string} packageName The name of a package.
+ * @return {boolean} Returns true if the package is local to the app, false otherwise.
+ */
+function isLocalPackage(packageName) {
+    var isopackName = packageName.split(':').join('_')
+    return fs.existsSync(path.resolve(appDir(), '.meteor/local/isopacks', isopackName))
 }
 
-// otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
-else {
-    console.log(' --- In an app build with an appDir.')
-}
+// entrypoint
+~function() {
+    //console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
+    //console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
+    //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
+    //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
 
-// Add this to the `process` so we can detect first runs vs re-builds after file
-// changes.
-if (!process['rocket:module first run complete']) {
-    process['rocket:module first run complete'] = true
-}
+    var isFirstRun = !process.rocketModuleFirstRunComplete
+    var localIsopacks = path.resolve(appDir(), '.meteor/local/isopacks')
+
+    if (isFirstRun && fs.existsSync(localIsopacks)) {
+        console.log(' --- dependents: ', getDependentsOf('rocket:module'))
+        //console.log(' --- sleeping for 10 sec.')
+        //Meteor.sleep(10000)
+        //console.log(' --- Removing .meteor/local/isopacks')
+        //fse.removeSync(localIsopacks)
+        //console.log(' --- exiting.')
+        //process.exit()
+    }
+
+    // TODO: code splitting among all bundles
+    var compileManager = new CompileManager([
+        // also catches module.ts files compiled by mologie:typescript
+        'module.js',
+
+        // in case there was a module.coffee file compiled by coffeescript
+        'module.coffee.js',
+
+        // in case there was a module.ts compiled by meteortypescript:compiler or jasonparekh:tsc
+        'module.ts.js',
+
+        // in case there was a module.ls compiled by dessix:livescript-compiler or vasaka:livescript-compiler
+        'module.ls.js'
+    ])
+
+    // handle all files with the source handler. It simply prepends a comment to
+    // files, on both publish and app side.
+    compileManager.initSourceHandlers()
+    console.log(' --- Added the source handlers! ')
+
+    // if we are in a publish build (using `meteor publish`), we set up the source
+    // handlers that will transform entry points by commenting them out.
+    // TODO: This catches the test scenario too. We might need to handle the test scenarios too.
+    if (!isAppBuild() || !appDir()) {
+        console.log(' --- Not in an app build or no appDir.')
+    }
+
+    // otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
+    else {
+        console.log(' --- In an app build with an appDir.')
+    }
+
+    // Add this to the `process` so we can detect first runs vs re-builds after file
+    // changes.
+    if (!process.rocketModuleFirstRunComplete) {
+        process.rocketModuleFirstRunComplete = true
+    }
+}()

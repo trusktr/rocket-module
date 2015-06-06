@@ -45,10 +45,15 @@ apply until version 1.0.0.*
       local packages and the app itself, then add a hook that allows a function to
       run once local files have been handled by the source handler. This won't be
       needed once Plugin.registerBatchHandler is released (I think).
+  - [ ] Turns out we don't know which isopacks have to be compiled even on
+        first run, so for the next step to work, we need to remove the local isopacks
+        that are dependents of rocket:module from the app's .meteor/local/isopacks/.
   - [ ] If the plugin provider is running for the first time (the meteor command was just
         executed) then get the local dependents of rocket:module, and based on that
         determine how many times the source handler will execute (once for each module.js
         in the app, and once for each module.js in each local package).
+    - [ ] If the local isopacks exist.
+    - [ ] If the local isopacks don't exist.
   - [ ] If the plugin provider is running due to a file change, use the first execution of
         the source handler to detect what package (including the app itself) is being
         recompiled, then based on that find out know how many source handler executions
