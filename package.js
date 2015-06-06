@@ -27,8 +27,8 @@ Package.registerBuildPlugin({
     }
 })
 
-//Package.onTest(function(api) {
-//    api.use('tinytest')
-//    api.use('rocket:module')
-//    api.addFiles('module-tests.js')
-//})
+Package.onTest(function(api) {
+    api.use('tinytest')
+    api.use('rocket:module')
+    api.addFiles('module-tests.js')
+})
