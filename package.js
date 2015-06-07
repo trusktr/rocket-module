@@ -23,7 +23,9 @@ Package.registerBuildPlugin({
         'rndm': '1.1.0',
         'lodash': '3.8.0',
         'glob': '5.0.5',
-        'user-home': '1.1.1'
+        'user-home': '1.1.1',
+        'fs-extra': '0.18.4',
+        'async': '1.2.0'
     }
 })
 

@@ -1,5 +1,64 @@
 {
   "dependencies": {
+    "async": {
+      "version": "1.2.0"
+    },
+    "fs-extra": {
+      "version": "0.18.4",
+      "dependencies": {
+        "graceful-fs": {
+          "version": "3.0.8"
+        },
+        "jsonfile": {
+          "version": "2.0.1"
+        },
+        "rimraf": {
+          "version": "2.3.4",
+          "dependencies": {
+            "glob": {
+              "version": "4.5.3",
+              "dependencies": {
+                "inflight": {
+                  "version": "1.0.4",
+                  "dependencies": {
+                    "wrappy": {
+                      "version": "1.0.1"
+                    }
+                  }
+                },
+                "inherits": {
+                  "version": "2.0.1"
+                },
+                "minimatch": {
+                  "version": "2.0.8",
+                  "dependencies": {
+                    "brace-expansion": {
+                      "version": "1.1.0",
+                      "dependencies": {
+                        "balanced-match": {
+                          "version": "0.2.0"
+                        },
+                        "concat-map": {
+                          "version": "0.0.1"
+                        }
+                      }
+                    }
+                  }
+                },
+                "once": {
+                  "version": "1.3.2",
+                  "dependencies": {
+                    "wrappy": {
+                      "version": "1.0.1"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "glob": {
       "version": "5.0.5",
       "dependencies": {
