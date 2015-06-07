@@ -12,8 +12,8 @@ Installation
 meteor add rocket:module
 ```
 
-Roadmap
--------
+Roadmap/tasks until first release
+---------------------------------
 
 These steps are mostly in the order that they'll be developed. *Semver rules won't
 apply until version 1.0.0.*
@@ -48,16 +48,16 @@ apply until version 1.0.0.*
   - [x] Turns out we don't know which isopacks have to be compiled even on
         first run, so for the next step to work, we need to remove the local isopacks
         that are dependents of rocket:module from the app's .meteor/local/isopacks/.
-  - [ ] Also delete the builds of the app's module.js files.
-  - [ ] If the plugin provider is running for the first time (the meteor command was just
-        executed) then get the local dependents of rocket:module, and based on that
-        determine how many times the source handler will execute (once for each module.js
-        in the app, and once for each module.js in each local package).
-    - [ ] If the local isopacks exist.
-    - [ ] If the local isopacks don't exist.
+  - [x] ~~Also delete the builds of the app's module.js files.~~ We don't have to since apparently
+        the build plugin handles the app files every time regardless.
+  - [x] If the plugin provider is running during Meteor's first run, then get
+        the local dependents of rocket:module, and based on that determine how many
+        times the source handler will execute (once for each module.js in the app, and
+        once for each module.js in each local package).
+    - [x] Add a list of files added with api.addFiles to PackageInfo of a given package.
   - [ ] If the plugin provider is running due to a file change, use the first execution of
         the source handler to detect what package (including the app itself) is being
-        recompiled, then based on that find out know how many source handler executions
+        recompiled, then based on that find out how many source handler executions
         are left.
 - [ ] When this plugin provider script is running on the app side, we won't
       use a source handler any more. We'll have to take out the webpack from

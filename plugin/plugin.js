@@ -22,11 +22,13 @@ var async         = Npm.require('async')
 var webpack        = Package['rocket:webpack'].Webpack
 var PackageVersion = Package['package-version-parser'].PackageVersion
 
+var numberOfFilesToHandle = 0
+
 /**
  * Get the current app's path.
  * See: https://github.com/Sanjo/meteor-meteor-files-helpers/blob/71bbf71c1cae57657d79df4ac6c73defcdfe51d0/src/meteor_files_helpers.js#L11
  *
- * @return {string|null} The path to the application we are in, or null if
+ * @return {string|null} The full path to the application we are in, or null if
  * we're not in an application.
  */
 function appDir() {
@@ -115,9 +117,7 @@ function getInstalledPackages(explicitlyInstalled) {
     var lines = getLines(packagesFile)
     var packages = []
     packages = _.reduce(lines, function(result, line) {
-        if (!line.match(/^#/) && line.length !== 0) {
-            result.push(line.split('@')[0])
-        }
+        if (!line.match(/^#/) && line.length !== 0) result.push(line.split('@')[0])
         return result
     }, packages)
     return packages
@@ -156,6 +156,8 @@ function isAppBuild() {
  * @property {Array.string} dependencies An array of package names that are the
  * dependencies of this package, each name appended with @<version> if a
  * version is found. The array is empty if there are no dependencies.
+ * @property {Array.string} files An array of files that are added to the
+ * package.
  */
 
 /**
@@ -181,9 +183,8 @@ function getDependentsOf(packageName) {
     var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
-        if (package && _.find(package.dependencies, function(dep) { return dep.match(packageName) })) {
+        if (package && _.find(package.dependencies, function(dep) { return dep.match(packageName) }))
             result.push(package)
-        }
         return result
     }, [])
 }
@@ -205,10 +206,9 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var stringRegex = /['"][^'"]*['"]/g
     var objectRegex = /{[^{}]*}/
 
-    var dependencies = []
-
     // Get the dependencies based on api.use calls.
     // TODO: Also include in the result which architecture each dependency is for.
+    var dependencies = []
     var apiDotUseCalls = packageDotJsSource.match(apiDotUseRegex)
     if (apiDotUseCalls) {
         dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
@@ -223,6 +223,22 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         }, dependencies)
     }
 
+    // get the added files based on api.addFiles calls.
+    var apiDotAddFilesCalls = packageDotJsSource.match(apiDotAddFilesRegex)
+    var addedFiles = []
+    if (apiDotAddFilesCalls) {
+        addedFiles = _.reduce(apiDotAddFilesCalls, function(result, apiDotAddFilesCall) {
+            var fileNameStrings = apiDotAddFilesCall.match(stringRegex)
+            if (fileNameStrings) {
+                fileNameStrings = _.map(fileNameStrings, function(fileNameString) {
+                    return fileNameString.replace(/['"]/g, '')
+                })
+                result = result.concat(fileNameStrings)
+            }
+            return result
+        }, addedFiles)
+    }
+
     // Get the package description from the Package.describe call.
     var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
     if (packageDescription) {
@@ -234,7 +250,8 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
 
     return _.assign(packageDescription, {
         path: packagePath,
-        dependencies: dependencies // empty array if no dependencies are found
+        dependencies: dependencies, // empty array if no dependencies are found
+        files: addedFiles // empty array if no files are added
     })
 }
 
@@ -330,6 +347,8 @@ function getDependenciesFromPlatformFiles(isopackPath) {
  * `dependencies` keys.
  *
  * TODO: Don't add packagePath here, add it externally with _.assign.
+ *
+ * TODO: Get added files from platform files.
  */
 function getInfoFromIsopack(isopackPath) {
     var isoUniResult = isoOrUni(isopackPath)
@@ -551,8 +570,18 @@ _.assign(CompileManager.prototype, {
             sourcePath: compileStep.inputPath,
             bare: true
         })
+
+        // keep track of this so when we run on the app side we can detect when
+        // all local module.js files (those of the app and those of the app's
+        // packages) have been handled.
         this.handledSourceCount += 1
-        console.log(' -------- handled source count: ', this.handledSourceCount)
+        if (isAppBuild() && appDir() && this.handledSourceCount === numberOfFilesToHandle) {
+            this.onAppHandlingComplete()
+        }
+    },
+
+    onAppHandlingComplete: function onAppHandlingComplete() {
+        console.log(' -------- Handling complete! Number of handled source files: ', this.handledSourceCount)
     },
 
     /**
@@ -680,6 +709,13 @@ function indexOfObjectWithKeyValue(array, key, value) {
     return index
 }
 
+/*
+ * See http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+ */
+function escapeRegExp(str) {
+  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+}
+
 // entrypoint
 ~function() {
     //console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
@@ -693,33 +729,62 @@ function indexOfObjectWithKeyValue(array, key, value) {
 
     // get only the local isopacks that are dependent on rocket:module
     var isopackNames = _.reduce(fs.readdirSync(localIsopacksDir), function(result, isopackName) {
-        if (~indexOfObjectWithKeyValue(dependents, "name", toPackageName(isopackName))) {
+        if (~indexOfObjectWithKeyValue(dependents, "name", toPackageName(isopackName)))
             result.push(isopackName)
-        }
         return result
     }, [])
 
-    // if we've just started the `meteor` command and there exist local
-    // isopacks dependent on rocket:module, delete from the filesystem, then
-    // tell the user to restart meteor before exiting.
-    if (isFirstRun && isopackNames.length) ~function() {
-        var removalTasks = []
+    // if we've just started the `meteor` command
+    if (isFirstRun) ~function() {
 
-        _.forEach(isopackNames, function(isopackName) {
-            var isopackPath = path.resolve(localIsopacksDir, isopackName)
-            removalTasks.push(function(callback) {
-                fse.remove(isopackPath, callback)
+        // If there exist local isopacks dependent on rocket:module, delete
+        // them from the filesystem, then tell the user to restart meteor
+        // before finally exiting. On the next run this will be skipped.
+        if (isopackNames.length) ~function() {
+            var removalTasks = []
+
+            _.forEach(isopackNames, function(isopackName) {
+                var isopackPath = path.resolve(localIsopacksDir, isopackName)
+                removalTasks.push(function(callback) {
+                    fse.remove(isopackPath, callback)
+                })
             })
+
+            Meteor.wrapAsync(function(callback) {
+                async.parallel(removalTasks, callback)
+            })()
+
+            console.log('\n\n')
+            console.log(" --- Rocket:module builds cleaned. Please restart Meteor. (In a future version of rocket:module you won't have to restart manually.)")
+            console.log('\n')
+            process.exit()
+        }()
+
+        // Find the number of files that rocket:module's source handler will
+        // handle. These are the module.js files of the current app and it's
+        // local packages. We don't care about non-local packages' module.js
+        // files because those were already handled before those packages were
+        // published. We need this so that we will be able to determine when
+        // the source handlers are done running so that we can then run our
+        // batch handler to compile all the modules of all the packages in the
+        // app using the batch handler. We won't need to do all this
+        // bookkeeping once Plugin.registerBatchHandler is released.
+        var app = appDir()
+        var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
+        console.log(' --- app module files:\n', appModuleFiles)
+        appModuleFiles = _.filter(appModuleFiles, function(file) {
+            return !file.match(escapeRegExp(path.resolve(app, 'packages')))
         })
-
-        Meteor.wrapAsync(function(callback) {
-            async.parallel(removalTasks, callback)
-        })()
-
-        console.log('\n\n')
-        console.log(" --- Rocket:module builds cleaned. Please restart Meteor. (In a future version of rocket:module you won't have to restart manually.)")
-        console.log('\n')
-        process.exit()
+        console.log(' --- app module files:\n', appModuleFiles)
+        numberOfFilesToHandle += appModuleFiles.length
+        _.forEach(dependents, function(dependent) {
+            var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
+                if (file.match(/module\.js$/)) result.push(file)
+                return result
+            }, [])
+            numberOfFilesToHandle += packageModuleFiles.length
+        })
+        console.log(' --- number of files to handle: ', numberOfFilesToHandle)
     }()
 
     // TODO: code splitting among all bundles
