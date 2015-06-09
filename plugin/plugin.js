@@ -23,6 +23,7 @@ var webpack        = Package['rocket:webpack'].Webpack
 var PackageVersion = Package['package-version-parser'].PackageVersion
 
 var numberOfFilesToHandle = 0
+var isFirstRun = !process.rocketModuleFirstRunComplete
 
 /**
  * Get the current app's path.
@@ -575,7 +576,7 @@ _.assign(CompileManager.prototype, {
         // all local module.js files (those of the app and those of the app's
         // packages) have been handled.
         this.handledSourceCount += 1
-        if (isAppBuild() && appDir() && this.handledSourceCount === numberOfFilesToHandle) {
+        if (isFirstRun && isAppBuild() && appDir() && this.handledSourceCount === numberOfFilesToHandle) {
             this.onAppHandlingComplete()
         }
     },
@@ -723,7 +724,6 @@ function escapeRegExp(str) {
     //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
     //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
 
-    var isFirstRun = !process.rocketModuleFirstRunComplete
     var localIsopacksDir = path.resolve(appDir(), '.meteor/local/isopacks')
     var dependents = getDependentsOf('rocket:module')
 
@@ -761,22 +761,23 @@ function escapeRegExp(str) {
         }()
 
         // Find the number of files that rocket:module's source handler will
-        // handle. These are the module.js files of the current app and it's
-        // local packages. We don't care about non-local packages' module.js
-        // files because those were already handled before those packages were
-        // published. We need this so that we will be able to determine when
-        // the source handlers are done running so that we can then run our
-        // batch handler to compile all the modules of all the packages in the
-        // app using the batch handler. We won't need to do all this
-        // bookkeeping once Plugin.registerBatchHandler is released.
+        // handle on the app-side. These are the module.js files of the current
+        // app and it's local packages. We don't care about non-local packages'
+        // module.js files because those were already handled before those
+        // packages were published. We need this so that we will be able to
+        // determine when the source handlers are done running so that we can
+        // then run our batch handler to compile all the modules of all the
+        // packages in the app using the batch handler. We won't need to do all
+        // this bookkeeping once Plugin.registerBatchHandler is released.
         var app = appDir()
-        var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
-        console.log(' --- app module files:\n', appModuleFiles)
-        appModuleFiles = _.filter(appModuleFiles, function(file) {
-            return !file.match(escapeRegExp(path.resolve(app, 'packages')))
-        })
-        console.log(' --- app module files:\n', appModuleFiles)
-        numberOfFilesToHandle += appModuleFiles.length
+        // only check the app for module.js files if rocket:module is installed for the app.
+        if (_.contains(getInstalledPackages(true), "rocket:module")) {
+            var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
+            appModuleFiles = _.filter(appModuleFiles, function(file) {
+                return !file.match(escapeRegExp(path.resolve(app, 'packages')))
+            })
+            numberOfFilesToHandle += appModuleFiles.length
+        }
         _.forEach(dependents, function(dependent) {
             var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
                 if (file.match(/module\.js$/)) result.push(file)
@@ -784,7 +785,6 @@ function escapeRegExp(str) {
             }, [])
             numberOfFilesToHandle += packageModuleFiles.length
         })
-        console.log(' --- number of files to handle: ', numberOfFilesToHandle)
     }()
 
     // TODO: code splitting among all bundles

@@ -59,32 +59,36 @@ apply until version 1.0.0.*
         the source handler to detect what package (including the app itself) is being
         recompiled, then based on that find out how many source handler executions
         are left.
-- [ ] When this plugin provider script is running on the app side, we won't
-      use a source handler any more. We'll have to take out the webpack from
-      the current source handler and use it in our own function that runs at
-      this time. Define the new batch handler method for the CompileManager
-      class.
-- [ ] In the batch handler, choose a new temporary location to handle the
-      output of all the entry points all at once on a per-batch basis instead
-      of on a per-file basis.
-- [ ] In the batch handler, link a node_modules folder to the npm/node_modules
-      folder of each isopack. This replaces the current code that create a
-      node_modules link to a local package's .npm node_modules folder. I'm
-      hoping that webpack can have multiple node_modules folders to look in.
-      This feature is temporary, to be replaced in a following step with a
-      custom dependencies file that rocket:module will use to install all npm
-      dependencies in a single place in preparation for code splitting.
-      Packages won't use Npm.depends anymore.
-- [ ] batch handler: Detect all the files from the previous step and list them in the
-      webpack config's entry option as an array of file names. We'll have to
-      modify the defaultConfig function.
-- [ ] Make sure we still to override the defaultConfig using each package's config.
-- [ ] Run webpack.
-- [ ] Instead of using compileStep.addJavaScript, we'll now loop through all
-      the output files and write each one back to the original entry point
-      files that were in the isopacks. We need to make sure to handle each
-      one on a per architecture basis, and we also need to update each arch
-      json file to contain the result files byte lengths.
+- [ ] When this plugin provider script is running on the app side, we won't use
+      a source handler any more for any compiling, instead the handler will do it's
+      simple task of marking app-side handled files as in need of compiling with a
+      comment. We'll have to take out the webpack from the current source handler and
+      use it in a new function, the batchHandler, that runs after all app-side files
+      have been handled. The batch handler will compile all modules.js files in all
+      package (local or not) of the application. In the future this batchHandler will
+      be replaced by Meteor's Plugin.registerBatchHandler, whenever that gets
+      introduced. Create the new batch handler method for the CompileManager class.
+  - [ ] In the batch handler, choose a new temporary location to handle the
+        output of all the entry points all at once on a per-batch basis instead
+        of on a per-file basis.
+  - [ ] In the batch handler, link a node_modules folder to the npm/node_modules
+        folder of each isopack. This replaces the current code that create a
+        node_modules link to a local package's .npm node_modules folder. I'm
+        hoping that webpack can have multiple node_modules folders to look in.
+        This feature is temporary, to be replaced in a following step with a
+        custom dependencies file that rocket:module will use to install all npm
+        dependencies in a single place in preparation for code splitting.
+        Packages won't use Npm.depends anymore.
+  - [ ] batch handler: Detect all the files from the previous step and list them in the
+        webpack config's entry option as an array of file names. We'll have to
+        modify the defaultConfig function.
+  - [ ] Make sure we still to override the defaultConfig using each package's config.
+  - [ ] Run webpack.
+  - [ ] Instead of using compileStep.addJavaScript, we'll now loop through all
+        the output files and write each one back to the original entry point
+        files that were in the isopacks. We need to make sure to handle each
+        one on a per architecture basis, and we also need to update each arch
+        json file to contain the result files byte lengths.
 
 ### v0.3.0
 - [ ] Now we'll go back and modify the node_modules handling so that
@@ -96,3 +100,10 @@ apply until version 1.0.0.*
 - [ ] Fine tune anything? Finalize configuration API.
 - [ ] Update README with usage and configuration documentation.
 - [ ] Celebrate! Wooooo!
+
+### v1.x.x
+- [ ] Detect and deal with certain conditions.
+  - [ ] When recompiling a local package during an app-rebuild (meteor is already
+        running, not its first run), detect if the package's dependencies have
+        changed. If so, other packages that share the same dependencies need to be
+        recompiled too, so that shared libraries through code splitting works.
