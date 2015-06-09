@@ -589,8 +589,7 @@ _.assign(CompileManager.prototype, {
      * This will morph into the new batch handler...
      */
     batchHandler: function batchHandler() {
-        var modulesLink, modulesSource, output, tmpLocation, appId,
-            pathToConfig, config, webpackCompiler, webpackResult,
+        var output, webpackCompiler,
             currentPackage
 
         var app = appDir()
@@ -600,13 +599,15 @@ _.assign(CompileManager.prototype, {
          * Choose a temporary output location that doesn't exist yet.
          * TODO: Get the app id (from .meteor/.id) a legitimate way.
          */
-        tmpLocation = '/tmp'
-        appId = fs.readFileSync(
-            path.resolve(app, '.meteor', '.id')
-        ).toString().trim().split('\n').slice(-1)[0]
-        do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
-        while ( fs.existsSync(output) )
-        output = path.resolve(output, compileStep.pathForSourceMap)
+        ~function() {
+            var tmpLocation = '/tmp'
+            var appId = fs.readFileSync(
+                path.resolve(app, '.meteor', '.id')
+            ).toString().trim().split('\n').slice(-1)[0]
+            do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
+            while ( fs.existsSync(output) )
+            output = path.resolve(output, compileStep.pathForSourceMap)
+        }()
 
         /*
          * Link the node_modules directory so modules can be resolved.
@@ -614,11 +615,13 @@ _.assign(CompileManager.prototype, {
          * TODO: Work entirely in the /tmp folder instead of creating the link
          * inside the currentPackage.
          */
-        currentPackage = packageDir(compileStep)
-        modulesLink = path.resolve(currentPackage, 'node_modules')
-        modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-        if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-        fs.symlinkSync(modulesSource, modulesLink)
+        ~function() {
+            currentPackage = packageDir(compileStep)
+            var modulesLink = path.resolve(currentPackage, 'node_modules')
+            var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+            if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+            fs.symlinkSync(modulesSource, modulesLink)
+        }()
 
         /*
          * Extend the default Webpack configuration with the user's
@@ -630,23 +633,27 @@ _.assign(CompileManager.prototype, {
          * TODO: Move the Npm.require here to the top of the file, for ES6
          * Module compatibility.
          */
-        pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-            getFileName(currentPackage), 'webpack.config.js')
-        config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-            Npm.require(pathToConfig) : {}
-        config = _.merge(this.defaultConfig(compileStep, output), config)
-        webpackCompiler = webpack(config)
+        ~function() {
+            var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+                getFileName(currentPackage), 'webpack.config.js')
+            var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+                Npm.require(pathToConfig) : {}
+            config = _.merge(this.defaultConfig(compileStep, output), config)
+            webpackCompiler = webpack(config)
+        }()
 
         /*
          * Run the Webpack compiler synchronously and give the result back to Meteor.
          */
-        webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-        compileStep.addJavaScript({
-            path: compileStep.inputPath,
-            data: fs.readFileSync(output).toString(),
-            sourcePath: compileStep.inputPath,
-            bare: true
-        })
+        ~function() {
+            var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+            compileStep.addJavaScript({
+                path: compileStep.inputPath,
+                data: fs.readFileSync(output).toString(),
+                sourcePath: compileStep.inputPath,
+                bare: true
+            })
+        }()
     }
 })
 
