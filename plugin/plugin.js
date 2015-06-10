@@ -32,7 +32,7 @@ var isFirstRun = !process.rocketModuleFirstRunComplete
  * @return {string|null} The full path to the application we are in, or null if
  * we're not in an application.
  */
-function appDir() {
+function getAppDir() {
     return MeteorFilesHelpers.getAppPath()
 }
 
@@ -42,7 +42,7 @@ function appDir() {
  * @return {string|null} Return the path as a string, or null if we're not in an app.
  */
 function packagesDir() {
-    var app = appDir()
+    var app = getAppDir()
     if (app) return path.resolve(app, 'packages')
     return null
 }
@@ -112,7 +112,7 @@ function getFileName(filePath) {
  */
 function getInstalledPackages(explicitlyInstalled) {
     var fileName = explicitlyInstalled ? 'packages' : 'versions'
-    var app = appDir()
+    var app = getAppDir()
     if (!app) throw new Error('getInstalledPackages is meant to be used while inside of a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', fileName)
     var lines = getLines(packagesFile)
@@ -179,7 +179,7 @@ function isAppBuild() {
  * result.
  */
 function getDependentsOf(packageName) {
-    var app = appDir()
+    var app = getAppDir()
     if (!app) throw new Error('getDependentsOf is meant to be used while inside of a Meteor application.')
     var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
@@ -380,7 +380,7 @@ function getInfoFromIsopack(isopackPath) {
  * XXX: Handle wrapper numbers? f.e. 0.2.3_3 with the underscore
  */
 function getInstalledVersion(packageName) {
-    var app = appDir()
+    var app = getAppDir()
     if (!app) throw new Error('getInstalledVersion is meant to be used while inside of a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', 'versions')
     var lines = getLines(packagesFile)
@@ -441,7 +441,7 @@ function getPackageInfo(packageName, packageVersion) {
     // this first logic for the `packages/` directory, then first look in the
     // local `.meteor/local/isopacks/` before finally looking in
     // `~/.meteor/packages/`.
-    var app = appDir()
+    var app = getAppDir()
     if (app) packageDotJsPath = path.resolve(app, 'packages', packageLocalName, 'package.js')
     if (
         app && (fs.existsSync(packageDotJsPath) && !packageVersion) ||
@@ -496,6 +496,19 @@ function getPackageInfo(packageName, packageVersion) {
     // If a package was found, get the package info, otherwise return null.
     if (packageInfo) return packageInfo
     return null
+}
+
+/**
+ * Gets the id of the current application.
+ *
+ * @return {string} The id.
+ */
+function getAppId() {
+    var app = getAppDir()
+    if (!app) throw new Error('getAppId is meant to be used while inside of a Meteor application.')
+    return fs.readFileSync(
+        path.resolve(app, '.meteor', '.id')
+    ).toString().trim().split('\n').slice(-1)[0] // the last line of the file.
 }
 
 /**
@@ -576,7 +589,7 @@ _.assign(CompileManager.prototype, {
         // all local module.js files (those of the app and those of the app's
         // packages) have been handled.
         this.handledSourceCount += 1
-        if (isFirstRun && isAppBuild() && appDir() && this.handledSourceCount === numberOfFilesToHandle) {
+        if (isFirstRun && isAppBuild() && getAppDir() && this.handledSourceCount === numberOfFilesToHandle) {
             this.onAppHandlingComplete()
         }
     },
@@ -589,71 +602,80 @@ _.assign(CompileManager.prototype, {
      * This will morph into the new batch handler...
      */
     batchHandler: function batchHandler() {
-        var output, webpackCompiler,
+        var output, webpackCompiler, batchDir,
             currentPackage
 
-        var app = appDir()
+        var app = getAppDir()
         if (!app) throw new Error('batchHandler is meant to be used while inside of a Meteor application.')
 
         /*
          * Choose a temporary output location that doesn't exist yet.
-         * TODO: Get the app id (from .meteor/.id) a legitimate way.
          */
         ~function() {
-            var tmpLocation = '/tmp'
-            var appId = fs.readFileSync(
-                path.resolve(app, '.meteor', '.id')
-            ).toString().trim().split('\n').slice(-1)[0]
-            do output = path.resolve(tmpLocation, 'meteor-'+appId, 'bundle-'+rndm(24))
-            while ( fs.existsSync(output) )
-            output = path.resolve(output, compileStep.pathForSourceMap)
+            // TODO: handle tmpLocation for different platforms. Perhaps just
+            // do it in a hidden folder in the application.
+            var tmpLocation = path.sep+'tmp'
+
+            do batchDir = path.resolve(tmpLocation, 'meteor-'+getAppId(), 'batch-'+rndm(24))
+            while ( fs.existsSync(batchDir) )
         }()
 
-        /*
-         * Link the node_modules directory so modules can be resolved.
-         *
-         * TODO: Work entirely in the /tmp folder instead of creating the link
-         * inside the currentPackage.
-         */
-        ~function() {
-            currentPackage = packageDir(compileStep)
-            var modulesLink = path.resolve(currentPackage, 'node_modules')
-            var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-            if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-            fs.symlinkSync(modulesSource, modulesLink)
-        }()
+        function getModuleFiles() {
+            var app = getAppDir()
+            return []
+        }
+        var moduleFiles = getModuleFiles()
 
-        /*
-         * Extend the default Webpack configuration with the user's
-         * configuration and get a Webpack compiler. Npm.require loads modules
-         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
-         * so we need to go back 5 dirs into the packagesDir then go into the
-         * target packageDir.
-         *
-         * TODO: Move the Npm.require here to the top of the file, for ES6
-         * Module compatibility.
-         */
-        ~function() {
-            var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-                getFileName(currentPackage), 'webpack.config.js')
-            var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-                Npm.require(pathToConfig) : {}
-            config = _.merge(this.defaultConfig(compileStep, output), config)
-            webpackCompiler = webpack(config)
-        }()
+        // for each module.js file {
 
-        /*
-         * Run the Webpack compiler synchronously and give the result back to Meteor.
-         */
-        ~function() {
-            var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-            compileStep.addJavaScript({
-                path: compileStep.inputPath,
-                data: fs.readFileSync(output).toString(),
-                sourcePath: compileStep.inputPath,
-                bare: true
-            })
-        }()
+            /*
+             * Link the node_modules directory so modules can be resolved.
+             *
+             * TODO: Work entirely in the /tmp folder instead of creating the link
+             * inside the currentPackage.
+             */
+            ~function() {
+                currentPackage = packageDir(compileStep)
+                var modulesLink = path.resolve(currentPackage, 'node_modules')
+                var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+                if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+                fs.symlinkSync(modulesSource, modulesLink)
+            }()
+
+            /*
+             * Extend the default Webpack configuration with the user's
+             * configuration and get a Webpack compiler. Npm.require loads modules
+             * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
+             * so we need to go back 5 dirs into the packagesDir then go into the
+             * target packageDir.
+             *
+             * TODO: Move the Npm.require here to the top of the file, for ES6
+             * Module compatibility.
+             */
+            ~function() {
+                //output = path.resolve(output, compileStep.pathForSourceMap)
+                var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+                    getFileName(currentPackage), 'webpack.config.js')
+                var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+                    Npm.require(pathToConfig) : {}
+                config = _.merge(this.defaultConfig(compileStep, output), config)
+                webpackCompiler = webpack(config)
+            }()
+
+            /*
+             * Run the Webpack compiler synchronously and give the result back to Meteor.
+             */
+            ~function() {
+                var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+                compileStep.addJavaScript({
+                    path: compileStep.inputPath,
+                    data: fs.readFileSync(output).toString(),
+                    sourcePath: compileStep.inputPath,
+                    bare: true
+                })
+            }()
+
+        // } end for
     }
 })
 
@@ -664,7 +686,7 @@ _.assign(CompileManager.prototype, {
  * @return {Array} An array containing a list of all the modules (paths).
  */
 function getUnhandledSources() {
-    var app = appDir()
+    var app = getAppDir()
     if (!app) throw new Error('getUnhandledSources is meant to be used while inside of a Meteor application.')
 
     return []
@@ -675,7 +697,7 @@ function getUnhandledSources() {
  * @return {boolean} Returns true if the package is local to the app, false otherwise.
  */
 function isLocalPackage(packageName) {
-    return fs.existsSync(path.resolve(appDir(), '.meteor/local/isopacks', toIsopackName(packageName)))
+    return fs.existsSync(path.resolve(getAppDir(), '.meteor/local/isopacks', toIsopackName(packageName)))
 }
 
 /**
@@ -726,12 +748,9 @@ function escapeRegExp(str) {
 
 // entrypoint
 ~function() {
-    //console.log(' ------ We\'re in an app? ', !!appDir(), '\n')
-    //console.log(' ------------------- IS APP BUILD ----------------- \n', isAppBuild())
-    //console.log(' ------------------- DEPENDENTS ----------------- \n', getDependentsOf('rocket:module'))
-    //console.log(' ------------------- PACKAGE INFO ----------------- \n', getPackageInfo('rocket:webpack'))
-
-    var localIsopacksDir = path.resolve(appDir(), '.meteor/local/isopacks')
+    console.log(' --- dependents:', getDependentsOf('rocket:module'))
+    process.exit()
+    var localIsopacksDir = path.resolve(getAppDir(), '.meteor/local/isopacks')
     var dependents = getDependentsOf('rocket:module')
 
     // get only the local isopacks that are dependent on rocket:module
@@ -776,7 +795,7 @@ function escapeRegExp(str) {
         // then run our batch handler to compile all the modules of all the
         // packages in the app using the batch handler. We won't need to do all
         // this bookkeeping once Plugin.registerBatchHandler is released.
-        var app = appDir()
+        var app = getAppDir()
         // only check the app for module.js files if rocket:module is installed for the app.
         if (_.contains(getInstalledPackages(true), "rocket:module")) {
             var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
@@ -813,18 +832,6 @@ function escapeRegExp(str) {
     // files, on both publish and app side.
     compileManager.initSourceHandlers()
     console.log(' --- Added the source handlers! ')
-
-    // if we are in a publish build (using `meteor publish`), we set up the source
-    // handlers that will transform entry points by commenting them out.
-    // TODO: This catches the test scenario too. We might need to handle the test scenarios too.
-    if (!isAppBuild() || !appDir()) {
-        console.log(' --- Not in an app build or no appDir.')
-    }
-
-    // otherwise we're in an app build so we'll use a batch handler to compile all the entry points.
-    else {
-        console.log(' --- In an app build with an appDir.')
-    }
 
     // Add this to the `process` so we can detect first runs vs re-builds after file
     // changes.
