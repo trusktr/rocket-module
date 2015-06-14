@@ -1,5 +1,5 @@
 {
-  "version": "0.1.5_4",
+  "version": "0.1.5_5",
   "name": "rocket-module",
   "description": "ES6 Modules for Meteor.",
   "main": "module-tests.js",
