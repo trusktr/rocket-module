@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.1.5_2',
+    version: '0.1.5_3',
     // Brief, one-line summary of the package.
     summary: 'ES6 Modules for Meteor. (And CJS/AMD too!)',
     // URL to the Git repository containing the source code for this package.
@@ -27,6 +27,12 @@ Package.registerBuildPlugin({
         'fs-extra': '0.18.4',
         'async': '1.2.0'
     }
+})
+
+Package.onUse(function(api) {
+    api.versionsFrom('1.1.0.2')
+
+    api.addFiles('blah.module.js', 'client')
 })
 
 //Package.onTest(function(api) {
