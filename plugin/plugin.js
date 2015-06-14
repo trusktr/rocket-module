@@ -589,7 +589,7 @@ _.assign(CompileManager.prototype, {
         // all local module.js files (those of the app and those of the app's
         // packages) have been handled.
         this.handledSourceCount += 1
-        if (isFirstRun && isAppBuild() && getAppDir() && this.handledSourceCount === numberOfFilesToHandle) {
+        if (isAppBuild() && getAppDir() && isFirstRun && this.handledSourceCount === numberOfFilesToHandle) {
             this.onAppHandlingComplete()
         }
     },
@@ -748,70 +748,72 @@ function escapeRegExp(str) {
 
 // entrypoint
 ~function() {
-    console.log(' --- dependents:', getDependentsOf('rocket:module'))
-    process.exit()
-    var localIsopacksDir = path.resolve(getAppDir(), '.meteor/local/isopacks')
-    var dependents = getDependentsOf('rocket:module')
+    if (isAppBuild() && getAppDir()) {
+        console.log(' --- dependents:', getDependentsOf('rocket:module'))
+        process.exit()
+        var localIsopacksDir = path.resolve(getAppDir(), '.meteor/local/isopacks')
+        var dependents = getDependentsOf('rocket:module')
 
-    // get only the local isopacks that are dependent on rocket:module
-    var isopackNames = _.reduce(fs.readdirSync(localIsopacksDir), function(result, isopackName) {
-        if (~indexOfObjectWithKeyValue(dependents, "name", toPackageName(isopackName)))
-            result.push(isopackName)
-        return result
-    }, [])
+        // get only the local isopacks that are dependent on rocket:module
+        var isopackNames = _.reduce(fs.readdirSync(localIsopacksDir), function(result, isopackName) {
+            if (~indexOfObjectWithKeyValue(dependents, "name", toPackageName(isopackName)))
+                result.push(isopackName)
+            return result
+        }, [])
 
-    // if we've just started the `meteor` command
-    if (isFirstRun) ~function() {
+        // if we've just started the `meteor` command
+        if (isFirstRun) ~function() {
 
-        // If there exist local isopacks dependent on rocket:module, delete
-        // them from the filesystem, then tell the user to restart meteor
-        // before finally exiting. On the next run this will be skipped.
-        if (isopackNames.length) ~function() {
-            var removalTasks = []
+            // If there exist local isopacks dependent on rocket:module, delete
+            // them from the filesystem, then tell the user to restart meteor
+            // before finally exiting. On the next run this will be skipped.
+            if (isopackNames.length) ~function() {
+                var removalTasks = []
 
-            _.forEach(isopackNames, function(isopackName) {
-                var isopackPath = path.resolve(localIsopacksDir, isopackName)
-                removalTasks.push(function(callback) {
-                    fse.remove(isopackPath, callback)
+                _.forEach(isopackNames, function(isopackName) {
+                    var isopackPath = path.resolve(localIsopacksDir, isopackName)
+                    removalTasks.push(function(callback) {
+                        fse.remove(isopackPath, callback)
+                    })
                 })
+
+                Meteor.wrapAsync(function(callback) {
+                    async.parallel(removalTasks, callback)
+                })()
+
+                console.log('\n\n')
+                console.log(" --- Rocket:module builds cleaned. Please restart Meteor. (In a future version of rocket:module you won't have to restart manually.)")
+                console.log('\n')
+                process.exit()
+            }()
+
+            // Find the number of files that rocket:module's source handler will
+            // handle on the app-side. These are the module.js files of the current
+            // app and it's local packages. We don't care about non-local packages'
+            // module.js files because those were already handled before those
+            // packages were published. We need this so that we will be able to
+            // determine when the source handlers are done running so that we can
+            // then run our batch handler to compile all the modules of all the
+            // packages in the app using the batch handler. We won't need to do all
+            // this bookkeeping once Plugin.registerBatchHandler is released.
+            var app = getAppDir()
+            // only check the app for module.js files if rocket:module is installed for the app.
+            if (_.contains(getInstalledPackages(true), "rocket:module")) {
+                var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
+                appModuleFiles = _.filter(appModuleFiles, function(file) {
+                    return !file.match(escapeRegExp(path.resolve(app, 'packages')))
+                })
+                numberOfFilesToHandle += appModuleFiles.length
+            }
+            _.forEach(dependents, function(dependent) {
+                var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
+                    if (file.match(/module\.js$/)) result.push(file)
+                    return result
+                }, [])
+                numberOfFilesToHandle += packageModuleFiles.length
             })
-
-            Meteor.wrapAsync(function(callback) {
-                async.parallel(removalTasks, callback)
-            })()
-
-            console.log('\n\n')
-            console.log(" --- Rocket:module builds cleaned. Please restart Meteor. (In a future version of rocket:module you won't have to restart manually.)")
-            console.log('\n')
-            process.exit()
         }()
-
-        // Find the number of files that rocket:module's source handler will
-        // handle on the app-side. These are the module.js files of the current
-        // app and it's local packages. We don't care about non-local packages'
-        // module.js files because those were already handled before those
-        // packages were published. We need this so that we will be able to
-        // determine when the source handlers are done running so that we can
-        // then run our batch handler to compile all the modules of all the
-        // packages in the app using the batch handler. We won't need to do all
-        // this bookkeeping once Plugin.registerBatchHandler is released.
-        var app = getAppDir()
-        // only check the app for module.js files if rocket:module is installed for the app.
-        if (_.contains(getInstalledPackages(true), "rocket:module")) {
-            var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
-            appModuleFiles = _.filter(appModuleFiles, function(file) {
-                return !file.match(escapeRegExp(path.resolve(app, 'packages')))
-            })
-            numberOfFilesToHandle += appModuleFiles.length
-        }
-        _.forEach(dependents, function(dependent) {
-            var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
-                if (file.match(/module\.js$/)) result.push(file)
-                return result
-            }, [])
-            numberOfFilesToHandle += packageModuleFiles.length
-        })
-    }()
+    }
 
     // TODO: code splitting among all bundles
     var compileManager = new CompileManager([
@@ -833,9 +835,11 @@ function escapeRegExp(str) {
     compileManager.initSourceHandlers()
     console.log(' --- Added the source handlers! ')
 
-    // Add this to the `process` so we can detect first runs vs re-builds after file
-    // changes.
-    if (!process.rocketModuleFirstRunComplete) {
-        process.rocketModuleFirstRunComplete = true
+    if (isAppBuild() && getAppDir()) {
+        // Add this to the `process` so we can detect first runs vs re-builds after file
+        // changes.
+        if (!process.rocketModuleFirstRunComplete) {
+            process.rocketModuleFirstRunComplete = true
+        }
     }
 }()
