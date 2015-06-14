@@ -592,8 +592,6 @@ _.assign(CompileManager.prototype, {
         if (isAppBuild() && getAppDir() && isFirstRun && this.handledSourceCount === numberOfFilesToHandle) {
             this.onAppHandlingComplete()
         }
-
-        process.exit()
     },
 
     onAppHandlingComplete: function onAppHandlingComplete() {
