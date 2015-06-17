@@ -297,12 +297,18 @@ function isoOrUni(isopackPath) {
     return null
 }
 
+var platformNames = [
+    'os',
+    'web.browser',
+    'web.cordova'
+]
+
 /**
  * Get the dependencies from an isopack's os.json, web.browser.json,
  * and web.cordova.json files.
  *
  * @param {string} isopackPath The path to an isopack.
- * @return {array} An array of package constraint strings being the
+ * @return {Array.string} An array of package constraint strings being the
  * dependencies of the given isopack.
  *
  * XXX: Make this less naive? The result doesn't show which deps are for which
@@ -312,23 +318,15 @@ function isoOrUni(isopackPath) {
  * XXX: Do we have to handle specific architectures like "os.linux"?
  */
 function getDependenciesFromPlatformFiles(isopackPath) {
-    var platformFileNames = [
-        'os.json',
-        'web.browser.json',
-        'web.cordova.json'
-    ]
-
-    var dependencies = []
-
     // get the `uses` array of each platform file and merge them together uniquely.
-    dependencies = _.reduce(platformFileNames, function(result, file) {
-        var pathToFile = path.resolve(isopackPath, file)
+    var dependencies = _.reduce(platformNames, function(dependencies, name) {
+        var pathToFile = path.resolve(isopackPath, name+'.json')
         if (fs.existsSync(pathToFile)) {
             var info = JSON.parse(fs.readFileSync(pathToFile).toString())
-            result = _.unique(_.union(result, info.uses), 'package')
+            dependencies = _.unique(_.union(dependencies, info.uses), 'package')
         }
-        return result
-    }, dependencies)
+        return dependencies
+    }, [])
 
     // convert each use into a package constraint string.
     dependencies = _.map(dependencies, function(use) {
@@ -336,6 +334,49 @@ function getDependenciesFromPlatformFiles(isopackPath) {
     })
 
     return dependencies
+}
+
+/**
+ * Get the a list of files that were added to a package (using api.addFiles)
+ * from its isopack.
+ *
+ * @param {string} isopackPath The path to an isopack.
+ * @return {Array.string} An array containing the full names of added files.
+ *
+ * TODO: Include which arches each file is added for.
+ */
+function getAddedFilesFromIsopack(isopackPath) {
+    var isoUniResult = isoOrUni(isopackPath)
+    if (!isoUniResult) throw new Error('isopack.json or unipackage.json not found!? Please report this at github.com/trusktr/rocket-module/issues')
+
+    var packageName = isoUniResult.name
+    var isopackName = toIsopackName(packageName)
+    var filenameSectionRegex = /\/+\n\/\/ +\/\/\n\/\/ (\S+).+(\n\/\/ (\S+).+)*\n\/\/ +\/\/\n\/+\n +\/\//g
+                                                   // └───┘  └──────────────┘
+                                                   //   ▴              ▴
+                                                   //   |              └── File info
+                                                   //   └── File name, capture group #1
+
+    var files = _.reduce(platformNames, function(files, platformName) {
+        var compiledFile = path.resolve(
+            isopackPath, platformName, 'packages', isopackName+'.js')
+
+        if (fs.existsSync(compiledFile)) {
+            var filenameSections = fs.readFileSync(compiledFile).toString().match(filenameSectionRegex)
+
+            _.each(filenameSections, function(filenameSection) {
+                var fileName = filenameSection.match(
+                    new RegExp(filenameSectionRegex.source))[1] // capture #1
+
+                // TODO: Does this work in Windows?
+                files.push(fileName.replace('packages/'+packageName+'/', ''))
+            })
+        }
+
+        return files
+    }, [])
+
+    return _.unique(files)
 }
 
 /**
@@ -353,6 +394,7 @@ function getDependenciesFromPlatformFiles(isopackPath) {
  */
 function getInfoFromIsopack(isopackPath) {
     var isoUniResult = isoOrUni(isopackPath)
+    if (!isoUniResult) throw new Error('isopack.json or unipackage.json not found!? Please report this at github.com/trusktr/rocket-module/issues')
     var result = {}
     var dependencies = []
 
@@ -361,10 +403,12 @@ function getInfoFromIsopack(isopackPath) {
     }
 
     dependencies = getDependenciesFromPlatformFiles(isopackPath)
+    files = getAddedFilesFromIsopack(isopackPath)
 
     result = _.assign(result, {
         path: isopackPath,
-        dependencies: dependencies
+        dependencies: dependencies,
+        files: files
     })
 
     return result
@@ -751,6 +795,7 @@ function escapeRegExp(str) {
     if (isAppBuild() && getAppDir()) {
         console.log(' --- dependents:', getDependentsOf('rocket:module'))
         process.exit()
+
         var localIsopacksDir = path.resolve(getAppDir(), '.meteor/local/isopacks')
         var dependents = getDependentsOf('rocket:module')
 
