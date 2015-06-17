@@ -98,7 +98,8 @@ apply until version 1.0.0.*
       This item will be split into a series of steps once we ge here.
 
 ### v1.0.0
-- [ ] Finish commented TODOs.
+- [ ] Move utility functions to a new package.
+- [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Fine tune anything? Finalize configuration API.
 - [ ] Update README with usage and configuration documentation.
 - [ ] Celebrate! Wooooo!
@@ -109,3 +110,7 @@ apply until version 1.0.0.*
         running, not its first run), detect if the package's dependencies have
         changed. If so, other packages that share the same dependencies need to be
         recompiled too, so that shared libraries through code splitting works.
+  - [ ] What happens if an app doesn't depend on rocket:module and has only
+        non-local packages depending on rocket:module? Will rocket:module's build
+        plugin run during app build? If not, how will we get it to run?
+- [ ] Test in Windows.
