@@ -153,12 +153,12 @@ function isAppBuild() {
  *
  * @type {Object}
  * @property {string} name The name of the package.
- * @property {string} path The full path of the package.
+ * @property {string} isopackPath The full path of the package's isopack.
  * @property {Array.string} dependencies An array of package names that are the
  * dependencies of this package, each name appended with @<version> if a
  * version is found. The array is empty if there are no dependencies.
  * @property {Array.string} files An array of files that are added to the
- * package.
+ * package (the files of a package that are specified with api.addFiles)
  */
 
 /**
@@ -368,7 +368,8 @@ function getAddedFilesFromIsopack(isopackPath) {
                 var fileName = filenameSection.match(
                     new RegExp(filenameSectionRegex.source))[1] // capture #1
 
-                // TODO: Does this work in Windows?
+                // TODO: Does this work in Windows? I'm assuming the fileName
+                // values here use unix forward slashes no matter what arch.
                 files.push(fileName.replace('packages/'+packageName+'/', ''))
             })
         }
@@ -556,6 +557,13 @@ function getAppId() {
 }
 
 /**
+ * @return {boolean} Returns truthy if rocket:module is explicitly installed in the current app.
+ */
+function appUsesRocketModule() {
+    return _.contains(getInstalledPackages(true), "rocket:module")
+}
+
+/**
  * A CompileManager keeps track of code splitting for dependency sharing across
  * bundles within the same Meteor package or across Meteor packages.
  *
@@ -564,7 +572,7 @@ function getAppId() {
 function CompileManager(extentions) {
     this.handledSourceCount = 0
     this.extentions = extentions
-    this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').path, 'npm/node_modules')
+    this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').isopackPath, 'npm', 'node_modules')
     console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
 }
 _.assign(CompileManager.prototype, {
@@ -624,7 +632,7 @@ _.assign(CompileManager.prototype, {
         console.log(' --- Executing source handler on file: ', compileStep.inputPath, '\n')
         compileStep.addJavaScript({
             path: compileStep.inputPath,
-            data: "/* _____rocket_module_____:not-compiled*/\n"+compileStep.read().toString(),
+            data: "/*_____rocket_module_____:not-compiled*/ throw new Error('Rocket:module needs to be installed in your app for some code to work: meteor add rocket:module') \n"+compileStep.read().toString(),
             sourcePath: compileStep.inputPath,
             bare: true
         })
@@ -664,62 +672,82 @@ _.assign(CompileManager.prototype, {
             while ( fs.existsSync(batchDir) )
         }()
 
-        function getModuleFiles() {
-            var app = getAppDir()
-            return []
+        function getModuleSource(packageInfo, fileName) {
+            var packageName
+            for (var i = 0; i<platformNames.length; i+=1) {
+
+                if (false) {
+                    break
+                }
+            }
+        }
+
+        /**
+         * @return {Array.string} A list of module.js files in the whole application.
+         */
+        function getModuleFileNames() {
+            // dependents is an array of PackageInfo
+            var dependents = getDependentsOf('rocket:module')
+
+            _.each(dependents, function(dependent) {
+                _.each(dependent.files, function(file, i, files) {
+                    files[i] = {
+                        file: file,
+                        source: getModuleSource(dependent, file)
+                    }
+                })
+            })
+
+            return dependents
         }
         var moduleFiles = getModuleFiles()
 
-        // for each module.js file {
+        /*
+         * Link the node_modules directory so modules can be resolved.
+         *
+         * TODO: Work entirely in the /tmp folder instead of creating the link
+         * inside the currentPackage.
+         */
+        ~function() {
+            currentPackage = packageDir(compileStep)
+            var modulesLink = path.resolve(currentPackage, 'node_modules')
+            var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+            if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
+            fs.symlinkSync(modulesSource, modulesLink)
+        }()
 
-            /*
-             * Link the node_modules directory so modules can be resolved.
-             *
-             * TODO: Work entirely in the /tmp folder instead of creating the link
-             * inside the currentPackage.
-             */
-            ~function() {
-                currentPackage = packageDir(compileStep)
-                var modulesLink = path.resolve(currentPackage, 'node_modules')
-                var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-                if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-                fs.symlinkSync(modulesSource, modulesLink)
-            }()
+        /*
+         * Extend the default Webpack configuration with the user's
+         * configuration and get a Webpack compiler. Npm.require loads modules
+         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
+         * so we need to go back 5 dirs into the packagesDir then go into the
+         * target packageDir.
+         *
+         * TODO: Move the Npm.require here to the top of the file, for ES6
+         * Module compatibility.
+         */
+        ~function() {
+            //output = path.resolve(output, compileStep.pathForSourceMap)
+            var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+                getFileName(currentPackage), 'webpack.config.js')
+            var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+                Npm.require(pathToConfig) : {}
+            config = _.merge(this.defaultConfig(compileStep, output), config)
+            webpackCompiler = webpack(config)
+        }()
 
-            /*
-             * Extend the default Webpack configuration with the user's
-             * configuration and get a Webpack compiler. Npm.require loads modules
-             * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
-             * so we need to go back 5 dirs into the packagesDir then go into the
-             * target packageDir.
-             *
-             * TODO: Move the Npm.require here to the top of the file, for ES6
-             * Module compatibility.
-             */
-            ~function() {
-                //output = path.resolve(output, compileStep.pathForSourceMap)
-                var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-                    getFileName(currentPackage), 'webpack.config.js')
-                var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-                    Npm.require(pathToConfig) : {}
-                config = _.merge(this.defaultConfig(compileStep, output), config)
-                webpackCompiler = webpack(config)
-            }()
-
-            /*
-             * Run the Webpack compiler synchronously and give the result back to Meteor.
-             */
-            ~function() {
-                var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-                compileStep.addJavaScript({
-                    path: compileStep.inputPath,
-                    data: fs.readFileSync(output).toString(),
-                    sourcePath: compileStep.inputPath,
-                    bare: true
-                })
-            }()
-
-        // } end for
+        /*
+         * Run the Webpack compiler synchronously and give the result back to Meteor.
+         */
+        ~function() {
+            var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+            compileStep.addJavaScript({
+                path: compileStep.inputPath,
+                data: fs.readFileSync(output).toString(),
+                sourcePath: compileStep.inputPath,
+                bare: true
+            })
+        }()
     }
 })
 
@@ -843,7 +871,7 @@ function escapeRegExp(str) {
             // this bookkeeping once Plugin.registerBatchHandler is released.
             var app = getAppDir()
             // only check the app for module.js files if rocket:module is installed for the app.
-            if (_.contains(getInstalledPackages(true), "rocket:module")) {
+            if (appUsesRocketModule()) {
                 var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
                 appModuleFiles = _.filter(appModuleFiles, function(file) {
                     return !file.match(escapeRegExp(path.resolve(app, 'packages')))
