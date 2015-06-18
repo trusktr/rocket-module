@@ -206,7 +206,8 @@ function getDependentsOf(packageName) {
  * @return {Object} A subset of the PackageInfo type that includes the `path` and
  * `dependencies` keys.
  *
- * TODO: Don't add packagePath here, add it externally with _.assign.
+ * TODO: Don't set localPath here, add it externally with _.assign.
+ * TODO: Don't set isopackPath here, add it externally with _.assign.
  */
 function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var apiDotUseRegex          = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
@@ -261,8 +262,11 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         }
     }
 
+    var isopackPath = getLocalPackagePath(packageDescription.name)
+
     return _.assign(packageDescription, {
-        path: packagePath,
+        localPath: packagePath,
+        isopackPath: isopackPath,
         dependencies: dependencies, // empty array if no dependencies are found
         files: addedFiles // empty array if no files are added
     })
@@ -795,19 +799,16 @@ function getUnhandledSources() {
 
 /**
  * @param {string} packageName The name of a package.
- * @return {boolean} Returns true if the package is local to the app, false otherwise.
- *
- * TODO: Possibly modify this to instead return the local package path when handling the PACKAGE_DIRS TODO for getPackageInfo().
+ * @return {string|null} Returns the local path of a package, null if not found.
  */
-function isLocalPackage(packageName) {
-    return (
-        fs.existsSync(
-            path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
-        ) ||
-        (PACKAGE_DIRS && fs.existsSync(
-            path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
-        ))
-    )
+function getLocalPackagePath(packageName) {
+    var path = path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
+    if (fs.existsSync(path)) return path
+    else if (PACKAGE_DIRS) {
+        path = path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
+        if (fs.existsSync(path)) return path
+    }
+    return null
 }
 
 /**
@@ -935,7 +936,7 @@ function escapeRegExp(str) {
                 numberOfFilesToHandle += appModuleFiles.length
             }
             _.forEach(dependents, function(dependent) {
-                if (isLocalPackage(dependent.name)) {
+                if (getLocalPackagePath(dependent.name)) {
                     console.log('\n --- local package: ', dependent.name, '\n')
                     var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
                         if (file.match(/module\.js$/)) {
