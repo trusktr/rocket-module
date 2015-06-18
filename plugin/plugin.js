@@ -25,6 +25,14 @@ var PackageVersion = Package['package-version-parser'].PackageVersion
 var numberOfFilesToHandle = 0
 var isFirstRun = !process.rocketModuleFirstRunComplete
 
+// The regex to capture file names in built isopack files.
+var PACKAGE_DIRS = _.get(process, 'env.PACKAGE_DIRS')
+var FILENAME_REGEX = /\/+\n\/\/ +\/\/\n\/\/ (\S+).+(\n\/\/ (\S+).+)*\n\/\/ +\/\/\n\/+\n +\/\//g
+                                               // └───┘  └──────────────┘
+                                               //   ▴              ▴
+                                               //   |              └── File info
+                                               //   └── File name, capture group #1
+
 /**
  * Get the current app's path.
  * See: https://github.com/Sanjo/meteor-meteor-files-helpers/blob/71bbf71c1cae57657d79df4ac6c73defcdfe51d0/src/meteor_files_helpers.js#L11
@@ -201,11 +209,15 @@ function getDependentsOf(packageName) {
  * TODO: Don't add packagePath here, add it externally with _.assign.
  */
 function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
-    var apiDotUseRegex = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
-    var apiDotAddFilesRegex = /api\s*\.\s*addFiles\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
+    var apiDotUseRegex          = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
+    var apiDotAddFilesRegex     = /api\s*\.\s*addFiles\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
     var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
-    var stringRegex = /['"][^'"]*['"]/g
-    var objectRegex = /{[^{}]*}/
+    var packageDotOnTestRegex   = /Package\s*\.\s*onTest\s*\(\s*function\s*(\s*.+\s*)[^{}]*}\s*\)/g
+    var stringRegex             = /['"][^'"]*['"]/g
+    var objectRegex             = /{[^{}]*}/
+
+    // Remove Package.onTest calls, for now.
+    packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
     // Get the dependencies based on api.use calls.
     // TODO: Also include in the result which architecture each dependency is for.
@@ -342,6 +354,7 @@ function getDependenciesFromPlatformFiles(isopackPath) {
  *
  * @param {string} isopackPath The path to an isopack.
  * @return {Array.string} An array containing the full names of added files.
+ * Empty if there are none.
  *
  * TODO: Include which arches each file is added for.
  */
@@ -351,22 +364,17 @@ function getAddedFilesFromIsopack(isopackPath) {
 
     var packageName = isoUniResult.name
     var isopackName = toIsopackName(packageName)
-    var filenameSectionRegex = /\/+\n\/\/ +\/\/\n\/\/ (\S+).+(\n\/\/ (\S+).+)*\n\/\/ +\/\/\n\/+\n +\/\//g
-                                                   // └───┘  └──────────────┘
-                                                   //   ▴              ▴
-                                                   //   |              └── File info
-                                                   //   └── File name, capture group #1
 
     var files = _.reduce(platformNames, function(files, platformName) {
         var compiledFile = path.resolve(
             isopackPath, platformName, 'packages', isopackName+'.js')
 
         if (fs.existsSync(compiledFile)) {
-            var filenameSections = fs.readFileSync(compiledFile).toString().match(filenameSectionRegex)
+            var filenameSections = fs.readFileSync(compiledFile).toString().match(FILENAME_REGEX)
 
             _.each(filenameSections, function(filenameSection) {
                 var fileName = filenameSection.match(
-                    new RegExp(filenameSectionRegex.source))[1] // capture #1
+                    new RegExp(FILENAME_REGEX.source))[1] // capture #1
 
                 // TODO: Does this work in Windows? I'm assuming the fileName
                 // values here use unix forward slashes no matter what arch.
@@ -404,12 +412,12 @@ function getInfoFromIsopack(isopackPath) {
     }
 
     dependencies = getDependenciesFromPlatformFiles(isopackPath)
-    files = getAddedFilesFromIsopack(isopackPath)
+    addedFiles = getAddedFilesFromIsopack(isopackPath)
 
     result = _.assign(result, {
-        path: isopackPath,
+        isopackPath: isopackPath,
         dependencies: dependencies,
-        files: files
+        files: addedFiles
     })
 
     return result
@@ -460,6 +468,8 @@ function getInstalledVersion(packageName) {
  *
  * TODO: If no local packages, local isopacks, or global isopacks are found,
  * get info from online but if no internet connection, return null.
+ *
+ * TODO: Also include files added in Package.onTest in the `files` property of the returned PackageInfo.
  */
 function getPackageInfo(packageName, packageVersion) {
 
@@ -467,10 +477,9 @@ function getPackageInfo(packageName, packageVersion) {
         versions, foundVersion, packageInfo
 
     var packageFound = false
-    var nameParts = packageName.split(':')
 
     // If the package is made by MDG, it has no username or organization prefix (vendor name).
-    var packageLocalName = nameParts[nameParts.length === 1 ? 0 : 1]
+    var packageLocalName = toLocalPackageName(packageName)
     var packageIsopackName = toIsopackName(packageName)
 
     // First check the app's local packages directory. If the package
@@ -572,6 +581,7 @@ function appUsesRocketModule() {
 function CompileManager(extentions) {
     this.handledSourceCount = 0
     this.extentions = extentions
+    console.log('isopath', getPackageInfo('rocket:webpack').isopackPath)
     this.rocketWebpackNodeModules = path.resolve(getPackageInfo('rocket:webpack').isopackPath, 'npm', 'node_modules')
     console.log('\n ----------------------- rocket:webpack node_modules path:\n', this.rocketWebpackNodeModules)
 }
@@ -629,7 +639,7 @@ _.assign(CompileManager.prototype, {
      * See https://github.com/meteor/meteor/wiki/CompileStep-API-for-Build-Plugin-Source-Handlers
      */
     sourceHandler: function sourceHandler(compileStep) {
-        console.log(' --- Executing source handler on file: ', compileStep.inputPath, '\n')
+        console.log(' --- Executing source handler on file: ', compileStep.fullInputPath, '\n')
         compileStep.addJavaScript({
             path: compileStep.inputPath,
             data: "/*_____rocket_module_____:not-compiled*/ throw new Error('Rocket:module needs to be installed in your app for some code to work: meteor add rocket:module') \n"+compileStep.read().toString(),
@@ -641,13 +651,17 @@ _.assign(CompileManager.prototype, {
         // all local module.js files (those of the app and those of the app's
         // packages) have been handled.
         this.handledSourceCount += 1
-        if (isAppBuild() && getAppDir() && isFirstRun && this.handledSourceCount === numberOfFilesToHandle) {
+        console.log('hello count:', this.handledSourceCount)
+        if (isAppBuild() && getAppDir() && isFirstRun &&
+            this.handledSourceCount === numberOfFilesToHandle) {
+
             this.onAppHandlingComplete()
         }
     },
 
     onAppHandlingComplete: function onAppHandlingComplete() {
         console.log(' -------- Handling complete! Number of handled source files: ', this.handledSourceCount)
+        this.batchHandler()
     },
 
     /**
@@ -672,9 +686,20 @@ _.assign(CompileManager.prototype, {
             while ( fs.existsSync(batchDir) )
         }()
 
-        function getModuleSource(packageInfo, fileName) {
+        function getModuleSource(modifiedPackageInfo, fileName) {
+            console.log(' -- getModuleSource')
             var packageName
+
             for (var i = 0; i<platformNames.length; i+=1) {
+                console.log('\n --- modifiedPackageInfo.isopackPath:', modifiedPackageInfo.isopackPath)
+                compiledFile = path.resolve(modifiedPackageInfo.isopackPath,
+                    platformNames[i], "packages", toIsopackName(modifiedPackageInfo.name)+'.js')
+
+                compiledFileSource = fs.readFileSync(compiledFile)
+
+                if (compiledFileSource.match(FILENAME_REGEX)) {
+                    console.log('\nMATCHES!!!!\n', compiledFileSource.match(FILENAME_REGEX))
+                }
 
                 if (false) {
                     break
@@ -686,6 +711,7 @@ _.assign(CompileManager.prototype, {
          * @return {Array.string} A list of module.js files in the whole application.
          */
         function getModuleFileNames() {
+            console.log(' -- getModuleFileNames')
             // dependents is an array of PackageInfo
             var dependents = getDependentsOf('rocket:module')
 
@@ -700,7 +726,10 @@ _.assign(CompileManager.prototype, {
 
             return dependents
         }
-        var moduleFiles = getModuleFiles()
+
+        var moduleFiles = getModuleFileNames()
+        console.log('\n --- module file names: ', moduleFiles)
+        process.exit()
 
         /*
          * Link the node_modules directory so modules can be resolved.
@@ -767,9 +796,18 @@ function getUnhandledSources() {
 /**
  * @param {string} packageName The name of a package.
  * @return {boolean} Returns true if the package is local to the app, false otherwise.
+ *
+ * TODO: Possibly modify this to instead return the local package path when handling the PACKAGE_DIRS TODO for getPackageInfo().
  */
 function isLocalPackage(packageName) {
-    return fs.existsSync(path.resolve(getAppDir(), '.meteor/local/isopacks', toIsopackName(packageName)))
+    return (
+        fs.existsSync(
+            path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
+        ) ||
+        (PACKAGE_DIRS && fs.existsSync(
+            path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
+        ))
+    )
 }
 
 /**
@@ -790,6 +828,19 @@ function toIsopackName(packageName) {
  */
 function toPackageName(isopackName) {
     return isopackName.split('_').join(':')
+}
+
+/**
+ * Get the local name of a package. This is the packageName in
+ * userName:packageName, which is what Meteor also names the folder of a local
+ * package.
+ *
+ * @param {string} packageName The full name of a package.
+ * @return {string} The local name of the package.
+ */
+function toLocalPackageName(packageName) {
+    var nameParts = packageName.split(':')
+    return nameParts[nameParts.length - 1]
 }
 
 /**
@@ -821,10 +872,10 @@ function escapeRegExp(str) {
 // entrypoint
 ~function() {
     if (isAppBuild() && getAppDir()) {
-        console.log(' --- dependents:', getDependentsOf('rocket:module'))
-        process.exit()
+        //console.log(' --- dependents:', getDependentsOf('rocket:module'))
+        //process.exit()
 
-        var localIsopacksDir = path.resolve(getAppDir(), '.meteor/local/isopacks')
+        var localIsopacksDir = path.resolve(getAppDir(), '.meteor', 'local', 'isopacks')
         var dependents = getDependentsOf('rocket:module')
 
         // get only the local isopacks that are dependent on rocket:module
@@ -873,18 +924,31 @@ function escapeRegExp(str) {
             // only check the app for module.js files if rocket:module is installed for the app.
             if (appUsesRocketModule()) {
                 var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
+
+                // filter out files from local packages.
                 appModuleFiles = _.filter(appModuleFiles, function(file) {
                     return !file.match(escapeRegExp(path.resolve(app, 'packages')))
                 })
+
+                console.log('+++ app files', appModuleFiles)
+
                 numberOfFilesToHandle += appModuleFiles.length
             }
             _.forEach(dependents, function(dependent) {
-                var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
-                    if (file.match(/module\.js$/)) result.push(file)
-                    return result
-                }, [])
-                numberOfFilesToHandle += packageModuleFiles.length
+                if (isLocalPackage(dependent.name)) {
+                    console.log('\n --- local package: ', dependent.name, '\n')
+                    var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
+                        if (file.match(/module\.js$/)) {
+                            result.push(file)
+                            console.log('+++ module file', dependent.name+'/'+file)
+                        }
+                        return result
+                    }, [])
+                    numberOfFilesToHandle += packageModuleFiles.length
+                }
             })
+
+            console.log('\nhow many total files?', numberOfFilesToHandle, '\n')
         }()
     }
 

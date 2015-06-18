@@ -78,19 +78,19 @@ apply until version 1.0.0.*
   - [x] In the batch handler, choose a new temporary location to handle the
         output of all the entry points all at once (on a per-batch basis instead
         of on a per-file basis).
-  - [ ] Find all the module.js files of all the packages in the app that depend
+  - [ ] Get all the module.js files of all the packages in the app that depend
         on rocket:module.
+  - [ ] batch handler: Detect all the files from the previous step and list them in the
+        webpack config's entry option as an array of file names. We'll have to
+        modify the defaultConfig function.
   - [ ] In the batch handler, link a node_modules folder to the npm/node_modules
-        folder of each isopack. This replaces the current code that create a
+        folder of each isopack. (This replaces the current code that creates a
         node_modules link to a local package's .npm node_modules folder. I'm
         hoping that webpack can have multiple node_modules folders to look in.
         This feature is temporary, to be replaced in a following step with a
         custom dependencies file that rocket:module will use to install all npm
         dependencies in a single place in preparation for code splitting.
-        Packages won't use Npm.depends anymore.
-  - [ ] batch handler: Detect all the files from the previous step and list them in the
-        webpack config's entry option as an array of file names. We'll have to
-        modify the defaultConfig function.
+        Packages won't use Npm.depends anymore.)
   - [ ] Make sure we still to override the defaultConfig using each package's config.
   - [ ] Run webpack.
   - [ ] Instead of using compileStep.addJavaScript, we'll now loop through all
