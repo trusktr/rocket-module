@@ -38,40 +38,47 @@ apply until version 1.0.0.*
 ### v0.2.0
 - [x] Make rocket:module's source handler simply prepend a comment that the
       file is in need of compiling.
+
 - [x] Detect if the build plugin provider script is running for the first time
       at the initial execution of the meteor command, or if it's running due to a file
       change.
-- [ ] On first run `meteor`, detect and count how many files need to be compiled on the app side for
-      local packages and the app itself, then add a hook that allows a function to
-      run once local files have been handled by the source handler. This won't be
-      needed once Plugin.registerBatchHandler is released (I think).
+
+- [x] On first run of `meteor`, detect and count how many files need to be
+      compiled on the app side for local packages and the app itself, then add a
+      hook that allows a function to run once local files have been handled by the
+      source handler. This won't be needed once Plugin.registerBatchHandler or Plugin.registerCompiler is
+      released (I think).
   - [x] Turns out we don't know which isopacks have to be compiled even on
         first run, so for the next step to work, we need to remove the local isopacks
         that are dependents of rocket:module from the app's .meteor/local/isopacks/.
-  - [x] ~~Also delete the builds of the app's module.js files.~~ We don't have to since apparently
-        the build plugin handles the app files every time regardless.
+  - [x] ~~Also delete the builds of the app's module.js files.~~ We don't have
+        to since apparently the build plugin handles the app files every time
+        regardless.
   - [x] If the plugin provider is running during Meteor's first run, then get
         the local dependents of rocket:module, and based on that determine how many
         times the source handler will execute (once for each module.js in the app, and
         once for each module.js in each local package).
     - [x] Add a list of files added with api.addFiles to PackageInfo of a given package.
+
 - [ ] If the plugin provider is running due to a file change, use the first execution of
       the source handler to detect what package (including the app itself) is being
       recompiled, then based on that find out how many source handler executions
       are left.
-- [ ] When this plugin provider script is running on the app side, we won't use
-      a source handler any more for any compiling, instead the handler will do it's
-      simple task of marking app-side handled files as in need of compiling with a
-      comment. We'll have to take out the webpack from the current source handler and
-      use it in a new function, the batchHandler, that runs after all app-side files
-      have been handled. The batch handler will compile all modules.js files in all
-      package (local or not) of the application. In the future this batchHandler will
-      be replaced by Meteor's Plugin.registerBatchHandler, whenever that gets
-      introduced. Create the new batch handler method for the CompileManager class.
+
+- [ ] Create the new batch handler method for the CompileManager class. (When
+      this plugin provider script is running on the app side, we won't use a source
+      handler any more for any compiling, instead the handler will do it's simple
+      task of marking app-side handled files as in need of compiling with a comment.
+      We'll have to take out the webpack functionality from the current source
+      handler and use it in a new function, the batchHandler, that runs after all
+      app-side files have been handled. The batch handler will compile all modules.js
+      files in all package (local or not) of the application. In the future this
+      batchHandler will be replaced by Meteor's Plugin.registerBatchHandler or
+      Plugin.registerCompiler, whenever that gets introduced.)
   - [x] In the batch handler, choose a new temporary location to handle the
         output of all the entry points all at once (on a per-batch basis instead
         of on a per-file basis).
-  - [ ] Find all the module.js files of all the package in the app that depend
+  - [ ] Find all the module.js files of all the packages in the app that depend
         on rocket:module.
   - [ ] In the batch handler, link a node_modules folder to the npm/node_modules
         folder of each isopack. This replaces the current code that create a
