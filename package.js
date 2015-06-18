@@ -29,12 +29,6 @@ Package.registerBuildPlugin({
     }
 })
 
-Package.onUse(function(api) {
-    api.versionsFrom('1.1.0.2')
-
-    api.addFiles('blah.module.js', 'client')
-})
-
 //Package.onTest(function(api) {
 //    api.use('tinytest')
 //    api.use('rocket:module')
