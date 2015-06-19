@@ -14,7 +14,7 @@ var fs            = Npm.require('fs')
 var rndm          = Npm.require('rndm')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
-var userHome      = Npm.require('user-home')
+var USER_HOME      = Npm.require('user-home')
 var fse           = Npm.require('fs-extra')
 var async         = Npm.require('async')
 
@@ -121,7 +121,7 @@ function getFileName(filePath) {
 function getInstalledPackages(explicitlyInstalled) {
     var fileName = explicitlyInstalled ? 'packages' : 'versions'
     var app = getAppDir()
-    if (!app) throw new Error('getInstalledPackages is meant to be used while inside of a Meteor application.')
+    if (!app) throw new Error('getInstalledPackages is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', fileName)
     var lines = getLines(packagesFile)
     var packages = []
@@ -188,7 +188,7 @@ function isAppBuild() {
  */
 function getDependentsOf(packageName) {
     var app = getAppDir()
-    if (!app) throw new Error('getDependentsOf is meant to be used while inside of a Meteor application.')
+    if (!app) throw new Error('getDependentsOf is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
         package = getPackageInfo(package)
@@ -196,6 +196,51 @@ function getDependentsOf(packageName) {
             result.push(package)
         return result
     }, [])
+}
+
+/**
+ * @param {string} packageName The name of a package.
+ * @return {string|null} Returns the local path of a package, null if not found.
+ */
+function getLocalPackagePath(packageName) {
+    var localPath = path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
+    if (fs.existsSync(localPath)) return localPath
+    else if (PACKAGE_DIRS) {
+        localPath = path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
+        if (fs.existsSync(localPath)) return localPath
+    }
+    return null
+}
+
+/**
+ * @param {string} packageName The name of a package.
+ * @return {boolean} Returns true if the package is local to the app, false otherwise.
+ */
+function isLocalPackage(packageName) {
+    return getLocalPackagePath(packageName) ? true : false
+}
+
+/**
+ * Get the path to the isopack of a package. This is the path to the isopack
+ * that is used in the current app.
+ *
+ * @param {string} packageName The name of the package.
+ * @return {string} The path to the isopack.
+ */
+function getIsopackPath(packageName) {
+    var app = getAppDir()
+    if (!app) throw new Error('getIsopackPath is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
+    var isopackPath
+    if (isLocalPackage(packageName)) {
+        isopackPath = path.resolve(
+            app, '.meteor', 'local', 'isopacks', toIsopackName(packageName))
+    }
+    else {
+        isopackPath = path.resolve(
+            USER_HOME, '.meteor', 'packages', toIsopackName(packageName),
+            getInstalledVersion(packageName))
+    }
+    return isopackPath
 }
 
 /**
@@ -262,7 +307,7 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         }
     }
 
-    var isopackPath = getLocalPackagePath(packageDescription.name)
+    var isopackPath = getIsopackPath(packageDescription.name)
 
     return _.assign(packageDescription, {
         localPath: packagePath,
@@ -370,11 +415,11 @@ function getAddedFilesFromIsopack(isopackPath) {
     var isopackName = toIsopackName(packageName)
 
     var files = _.reduce(platformNames, function(files, platformName) {
-        var compiledFile = path.resolve(
+        var compiledFilePath = path.resolve(
             isopackPath, platformName, 'packages', isopackName+'.js')
 
-        if (fs.existsSync(compiledFile)) {
-            var filenameSections = fs.readFileSync(compiledFile).toString().match(FILENAME_REGEX)
+        if (fs.existsSync(compiledFilePath)) {
+            var filenameSections = fs.readFileSync(compiledFilePath).toString().match(FILENAME_REGEX)
 
             _.each(filenameSections, function(filenameSection) {
                 var fileName = filenameSection.match(
@@ -438,7 +483,7 @@ function getInfoFromIsopack(isopackPath) {
  */
 function getInstalledVersion(packageName) {
     var app = getAppDir()
-    if (!app) throw new Error('getInstalledVersion is meant to be used while inside of a Meteor application.')
+    if (!app) throw new Error('getInstalledVersion is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', 'versions')
     var lines = getLines(packagesFile)
     var line = _.find(lines, function(line) {
@@ -519,11 +564,11 @@ function getPackageInfo(packageName, packageVersion) {
     else {
 
         // If the package exists in ~/.meteor/packages
-        packagePath = path.join(userHome, '.meteor/packages', packageIsopackName)
+        packagePath = path.join(USER_HOME, '.meteor/packages', packageIsopackName)
         if (fs.existsSync(packagePath)) {
 
             // Get the valid versions.
-            versions = path.join(userHome, '.meteor/packages', packageIsopackName, '*')
+            versions = path.join(USER_HOME, '.meteor/packages', packageIsopackName, '*')
             versions = glob.sync(versions)
             versions = _.reduce(versions, function(result, versionPath) {
                 var version = getFileName(versionPath)
@@ -545,7 +590,7 @@ function getPackageInfo(packageName, packageVersion) {
                     })
 
                 if (foundVersion) {
-                    packageInfo = getInfoFromIsopack(path.join(userHome, '.meteor/packages', packageIsopackName, foundVersion))
+                    packageInfo = getInfoFromIsopack(path.join(USER_HOME, '.meteor/packages', packageIsopackName, foundVersion))
                 }
             }
         }
@@ -563,7 +608,7 @@ function getPackageInfo(packageName, packageVersion) {
  */
 function getAppId() {
     var app = getAppDir()
-    if (!app) throw new Error('getAppId is meant to be used while inside of a Meteor application.')
+    if (!app) throw new Error('getAppId is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     return fs.readFileSync(
         path.resolve(app, '.meteor', '.id')
     ).toString().trim().split('\n').slice(-1)[0] // the last line of the file.
@@ -676,7 +721,7 @@ _.assign(CompileManager.prototype, {
             currentPackage
 
         var app = getAppDir()
-        if (!app) throw new Error('batchHandler is meant to be used while inside of a Meteor application.')
+        if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
 
         /*
          * Choose a temporary output location that doesn't exist yet.
@@ -691,31 +736,33 @@ _.assign(CompileManager.prototype, {
         }()
 
         function getModuleSource(modifiedPackageInfo, fileName) {
-            console.log(' -- getModuleSource')
-            var packageName
+            var source
 
             for (var i = 0; i<platformNames.length; i+=1) {
                 console.log('\n --- modifiedPackageInfo.isopackPath:', modifiedPackageInfo.isopackPath)
-                compiledFile = path.resolve(modifiedPackageInfo.isopackPath,
+                compiledFilePath = path.resolve(modifiedPackageInfo.isopackPath,
                     platformNames[i], "packages", toIsopackName(modifiedPackageInfo.name)+'.js')
 
-                compiledFileSource = fs.readFileSync(compiledFile)
+                if (fs.existsSync(compiledFilePath)) {
+                    compiledFileSource = fs.readFileSync(compiledFilePath).toString()
+                    console.log('\n $$$$$$$$$ \n Compiled Source:', compiledFileSource)
 
-                if (compiledFileSource.match(FILENAME_REGEX)) {
-                    console.log('\nMATCHES!!!!\n', compiledFileSource.match(FILENAME_REGEX))
-                }
-
-                if (false) {
-                    break
+                    if (compiledFileSource.match(FILENAME_REGEX)) {
+                        console.log('\nMATCHES!!!!\n', compiledFileSource.match(FILENAME_REGEX))
+                        source = compiledFileSource
+                        break
+                    }
                 }
             }
+            return source ? source : null
         }
 
         /**
          * @return {Array.string} A list of module.js files in the whole application.
+         *
+         * TODO: Rename this
          */
         function getModuleFileNames() {
-            console.log(' -- getModuleFileNames')
             // dependents is an array of PackageInfo
             var dependents = getDependentsOf('rocket:module')
 
@@ -732,7 +779,7 @@ _.assign(CompileManager.prototype, {
         }
 
         var moduleFiles = getModuleFileNames()
-        console.log('\n --- module file names: ', moduleFiles)
+        console.log('\n --- module file names: ', moduleFiles[1].files)
         process.exit()
 
         /*
@@ -792,23 +839,10 @@ _.assign(CompileManager.prototype, {
  */
 function getUnhandledSources() {
     var app = getAppDir()
-    if (!app) throw new Error('getUnhandledSources is meant to be used while inside of a Meteor application.')
+    if (!app) throw new Error('getUnhandledSources is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
+        // TODO: ^ Make a single function for this check.
 
     return []
-}
-
-/**
- * @param {string} packageName The name of a package.
- * @return {string|null} Returns the local path of a package, null if not found.
- */
-function getLocalPackagePath(packageName) {
-    var path = path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
-    if (fs.existsSync(path)) return path
-    else if (PACKAGE_DIRS) {
-        path = path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
-        if (fs.existsSync(path)) return path
-    }
-    return null
 }
 
 /**
@@ -871,6 +905,7 @@ function escapeRegExp(str) {
 }
 
 // entrypoint
+// TODO: use getIsopackPath() here instead of the repeated logic.
 ~function() {
     if (isAppBuild() && getAppDir()) {
         //console.log(' --- dependents:', getDependentsOf('rocket:module'))
@@ -936,7 +971,7 @@ function escapeRegExp(str) {
                 numberOfFilesToHandle += appModuleFiles.length
             }
             _.forEach(dependents, function(dependent) {
-                if (getLocalPackagePath(dependent.name)) {
+                if (isLocalPackage(dependent.name)) {
                     console.log('\n --- local package: ', dependent.name, '\n')
                     var packageModuleFiles = _.reduce(dependent.files, function(result, file) {
                         if (file.match(/module\.js$/)) {
