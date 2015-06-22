@@ -522,14 +522,12 @@ function getInstalledVersion(packageName) {
  */
 function getPackageInfo(packageName, packageVersion) {
 
-    var packageDotJsSource, packageDotJsPath, packagePath,
-        versions, foundVersion, packageInfo
+    var packageDotJsPath, packageInfo
 
     var packageFound = false
 
     // If the package is made by MDG, it has no username or organization prefix (vendor name).
     var packageLocalName = toLocalPackageName(packageName)
-    var packageIsopackName = toIsopackName(packageName)
 
     // First check the app's local packages directory. If the package
     // exists locally and either the user didn't specify a version or the user
@@ -551,7 +549,7 @@ function getPackageInfo(packageName, packageVersion) {
         app && (fs.existsSync(packageDotJsPath) && packageVersion &&
                     PackageVersion.compare(getInstalledVersion(packageName), packageVersion) === 0)
     ) {
-        packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
+        let packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
         packageInfo = getInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+getFileName(packageDotJsPath), ''))
     }
 
@@ -562,13 +560,14 @@ function getPackageInfo(packageName, packageVersion) {
     // TODO: Find dependencies for packages in ~/.meteor/packages by
     // looking at the *.json files there instead of package.js.
     else {
+        let packageIsopackName = toIsopackName(packageName)
 
         // If the package exists in ~/.meteor/packages
-        packagePath = path.join(USER_HOME, '.meteor/packages', packageIsopackName)
+        let packagePath = path.join(USER_HOME, '.meteor/packages', packageIsopackName)
         if (fs.existsSync(packagePath)) {
 
             // Get the valid versions.
-            versions = path.join(USER_HOME, '.meteor/packages', packageIsopackName, '*')
+            let versions = path.join(USER_HOME, '.meteor/packages', packageIsopackName, '*')
             versions = glob.sync(versions)
             versions = _.reduce(versions, function(result, versionPath) {
                 var version = getFileName(versionPath)
@@ -582,6 +581,7 @@ function getPackageInfo(packageName, packageVersion) {
             // maximum version if a specific version wasn't specified. No
             // version is found if a version is specified but doesn't exist.
             if (versions.length > 0) {
+                let foundVersion
                 if (packageVersion && _.contains(versions, packageVersion))
                     foundVersion = packageVersion
                 else if (!packageVersion)
