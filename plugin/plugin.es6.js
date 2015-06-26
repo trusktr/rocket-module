@@ -14,9 +14,10 @@ var fs            = Npm.require('fs')
 var rndm          = Npm.require('rndm')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
-var USER_HOME      = Npm.require('user-home')
+var USER_HOME     = Npm.require('user-home')
 var fse           = Npm.require('fs-extra')
 var async         = Npm.require('async')
+var regexr        = Npm.require('regexr')
 
 // Meteor package imports
 var webpack        = Package['rocket:webpack'].Webpack
@@ -255,23 +256,47 @@ function getIsopackPath(packageName) {
  * TODO: Don't set isopackPath here, add it externally with _.assign.
  */
 function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
-    var apiDotUseRegex          = /api\s*\.\s*use\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
-    var apiDotAddFilesRegex     = /api\s*\.\s*addFiles\s*\(\s*(['"][^'"]*['"]|\[(\s*(['"][^'"]*['"]\s*,?)\s*)*\])/g
-    var packageDotDescribeRegex = /Package\s*\.\s*describe\s*\(\s*{[^{}]*}\s*\)/g
-    var packageDotOnTestRegex   = /Package\s*\.\s*onTest\s*\(\s*function\s*(\s*.+\s*)[^{}]*}\s*\)/g
-    var stringRegex             = /['"][^'"]*['"]/g
-    var objectRegex             = /{[^{}]*}/
+    function apiDot(name, ...signature) {
+        var r = regexr
+        signature = _.reduce(signature, (result, signaturePiece, index) => {
+            return r`${result}${
+                index !== 0 ? r`\s*,\s*` : r``
+            }(${signaturePiece})`
+        }, '')
+        return r`/(api\s*\.\s*${name}\s*\(\s*(${signature})\s*\)\s*;*)/g`
+    }
+
+    var r = regexr
+    var stringRegex             = r`/['"][^'"]*['"]/g`
+    var stringArrayRegex        = r`/\[(\s*(${stringRegex}\s*,?)\s*)*\]/g`
+    var stringOrStringArrayRgx  = r`/${stringRegex}|${stringArrayRegex}/g`
+    var singleLevelObjectRegex  = r`{[^{}]*}` // can be improved, but works for this purpose
+
+    var apiDotVersionsFromRegex = apiDot('versionsFrom', stringOrStringArrayRgx)
+    var apiDotUseRegex          = r`(${apiDot('use', stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+    var apiDotImplyRegex        = r`(${apiDot('imply', stringOrStringArrayRgx)}|${apiDot('imply', stringOrStringArrayRgx, stringOrStringArrayRgx)})`
+    var apiDotExportRegex       = r`(${apiDot('export', stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+    var apiDotAddFilesRegex     = r`(${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+                                                           // ^ also add_files for COMPAT WITH 0.8.x
+
+    var apiCallRegex = r`(${apiDotVersionsFromRegex}|${apiDotUseRegex}|${apiDotImplyRegex}|${apiDotExportRegex}|${apiDotAddFilesRegex})`
+
+    var packageDotDescribeRegex = r`/Package\s*\.\s*describe\s*\(\s*${singleLevelObjectRegex}\s*\)/g`
+    var packageDotOnTestRegex   = r`/Package\s*\.\s*onTest\s*\(\s*function\s*\(\s*${r.identifier}\s*\)\s*{\s*(${apiCallRegex})+\s*}\s*\)/g`
 
     // Remove Package.onTest calls, for now.
+    // TODO v1.0.0: Parse char by char instead of regex for package.* calls.
     packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
     // Get the dependencies based on api.use calls.
     // TODO: Also include in the result which architecture each dependency is for.
     var dependencies = []
-    var apiDotUseCalls = packageDotJsSource.match(apiDotUseRegex)
+    // TODO: Extend RegExp in regexr and add a .flags() method for easily changing the flags.
+    var apiDotUseCalls = packageDotJsSource.match(r`/${apiDotUseRegex}/g`)
     if (apiDotUseCalls) {
         dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
-            var packageStrings = apiDotUseCall.match(stringRegex)
+            //TODO match first arg.
+            var packageStrings = apiDotUseCall.match(r`/${stringRegex}/g`)
             if (packageStrings) {
                 packageStrings = _.map(packageStrings, function(packageString) {
                     return packageString.replace(/['"]/g, '')
@@ -283,11 +308,12 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     }
 
     // get the added files based on api.addFiles calls.
-    var apiDotAddFilesCalls = packageDotJsSource.match(apiDotAddFilesRegex)
+    var apiDotAddFilesCalls = packageDotJsSource.match(r`/${apiDotAddFilesRegex}/g`)
     var addedFiles = []
     if (apiDotAddFilesCalls) {
         addedFiles = _.reduce(apiDotAddFilesCalls, function(result, apiDotAddFilesCall) {
-            var fileNameStrings = apiDotAddFilesCall.match(stringRegex)
+            //TODO match first arrg
+            var fileNameStrings = apiDotAddFilesCall.match(r`/${stringRegex}/g`)
             if (fileNameStrings) {
                 fileNameStrings = _.map(fileNameStrings, function(fileNameString) {
                     return fileNameString.replace(/['"]/g, '')
@@ -301,7 +327,7 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     // Get the package description from the Package.describe call.
     var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
     if (packageDescription) {
-        packageDescription = objectRegex.exec(packageDescription[0])
+        packageDescription = new RegExp(singleLevelObjectRegex).exec(packageDescription[0])
         if (packageDescription) {
             eval("packageDescription = "+packageDescription[0])
         }
@@ -423,7 +449,7 @@ function getAddedFilesFromIsopack(isopackPath) {
 
             _.each(filenameSections, function(filenameSection) {
                 var fileName = filenameSection.match(
-                    new RegExp(FILENAME_REGEX.source))[1] // capture #1
+                    new RegExp(FILENAME_REGEX.source))[1] // capture #1 (without the g flag)
 
                 // TODO: Does this work in Windows? I'm assuming the fileName
                 // values here use unix forward slashes no matter what arch.
@@ -963,6 +989,7 @@ function escapeRegExp(str) {
 
                 // filter out files from local packages.
                 appModuleFiles = _.filter(appModuleFiles, function(file) {
+                    // TODO: add escapeRegExp to regexr.
                     return !file.match(escapeRegExp(path.resolve(app, 'packages')))
                 })
 

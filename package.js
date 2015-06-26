@@ -26,12 +26,13 @@ Package.registerBuildPlugin({
         'glob': '5.0.5',
         'user-home': '1.1.1',
         'fs-extra': '0.18.4',
-        'async': '1.2.0'
+        'async': '1.2.0',
+        'regexr': '1.1.1'
     }
 })
 
-//Package.onTest(function(api) {
-//    api.use('tinytest')
-//    api.use('rocket:module')
-//    api.addFiles('module-tests.js')
-//})
+Package.onTest(function(api) {
+    api.use('tinytest')
+    api.use('rocket:module')
+    api.addFiles('module-tests.js')
+})
