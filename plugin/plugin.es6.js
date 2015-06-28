@@ -285,7 +285,7 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var packageDotOnTestRegex   = r`/Package\s*\.\s*onTest\s*\(\s*function\s*\(\s*${r.identifier}\s*\)\s*{\s*(${apiCallRegex})+\s*}\s*\)/g`
 
     // Remove Package.onTest calls, for now.
-    // TODO v1.0.0: Parse char by char instead of regex for package.* calls.
+    // TODO v1.0.0: Parse char by char instead of with regexes for package.* calls.
     packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
     // Get the dependencies based on api.use calls.

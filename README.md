@@ -78,26 +78,30 @@ apply until version 1.0.0.*
   - [x] In the batch handler, choose a new temporary location to handle the
         output of all the entry points all at once (on a per-batch basis instead
         of on a per-file basis).
-  - [ ] Get all the module.js files of all the packages in the app that depend
-        on rocket:module.
-  - [ ] batch handler: Detect all the files from the previous step and list them in the
-        webpack config's entry option as an array of file names. We'll have to
-        modify the defaultConfig function.
-  - [ ] In the batch handler, link a node_modules folder to the npm/node_modules
-        folder of each isopack. (This replaces the current code that creates a
-        node_modules link to a local package's .npm node_modules folder. I'm
-        hoping that webpack can have multiple node_modules folders to look in.
-        This feature is temporary, to be replaced in a following step with a
-        custom dependencies file that rocket:module will use to install all npm
-        dependencies in a single place in preparation for code splitting.
-        Packages won't use Npm.depends anymore.)
-  - [ ] Make sure we still to override the defaultConfig using each package's config.
-  - [ ] Run webpack.
+  - [ ] Get all the sources of module.js files of all the packages of the current app that depend
+        on rocket:module. Get the sources from the isopacks (local or not).
+  - [ ] Write these sources to the temporary location in some structure that
+        organizes the files by package.
+  - [ ] List all the files from the previous step in the webpack config's entry
+        option as an array of file names. We'll have to modify the defaultConfig
+        function.
+  - [ ] link a node_modules folder in each paackage folder of the temporary
+        location to a respective npm/node_modules folder of each isopack. (This
+        replaces the current code that creates a node_modules link to a local package's
+        .npm/node_modules folder.)
+  - [ ] List these node_modules folders as places to look for dependencies in
+        the webpack config (I'm hoping that webpack can have multiple node_modules
+        folders to look in. This feature is temporary, to be replaced in a following
+        step with a custom dependencies file that rocket:module will use to install all
+        npm dependencies in a single place in preparation for code splitting. Packages
+        won't use Npm.depends anymore.)
+  - [ ] Make sure we still override the defaultConfig using each package's config.
+  - [ ] Specify an output filename format for each file, then run webpack.
   - [ ] Instead of using compileStep.addJavaScript, we'll now loop through all
-        the output files and write each one back to the original entry point
-        files that were in the isopacks. We need to make sure to handle each
-        one on a per architecture basis, and we also need to update each arch
-        json file to contain the result files byte lengths.
+        the output files and write each one back to their original locations in the
+        isopacks. We need to make sure to handle each one on a per architecture basis,
+        and we also need to update each arch json file to contain the result file's byte
+        lengths.
 
 ### v0.3.0
 - [ ] Now we'll go back and modify the node_modules handling so that
