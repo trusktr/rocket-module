@@ -28,11 +28,11 @@ var isFirstRun = !process.rocketModuleFirstRunComplete
 
 // The regex to capture file names in built isopack files.
 var PACKAGE_DIRS = _.get(process, 'env.PACKAGE_DIRS')
-var FILENAME_REGEX = /\/+\n\/\/ +\/\/\n\/\/ (\S+).+(\n\/\/ (\S+).+)*\n\/\/ +\/\/\n\/+\n +\/\//g
-                                               // └───┘  └──────────────┘
-                                               //   ▴              ▴
-                                               //   |              └── File info
-                                               //   └── File name, capture group #1
+var FILENAME_REGEX = regexr`/\/+\n\/\/ +\/\/\n\/\/ (packages\/(?:\S+:)?\S+\/\S+).+((?:\n\/\/ (?:\S+).+)*)\n\/\/ +\/\/\n\/+\n +\/\//g`
+                                                // └───┘  └─────────────────────┘
+                                                //   ▴              ▴
+                                                //   |              └── File info, if any. capture group #2
+                                                //   └── File name. capture group #1
 
 /**
  * Get the current app's path.
@@ -254,6 +254,10 @@ function getIsopackPath(packageName) {
  *
  * TODO: Don't set localPath here, add it externally with _.assign.
  * TODO: Don't set isopackPath here, add it externally with _.assign.
+ *
+ * TODO: List the "meteor" dependency? It is listed in the isopack, so gotta
+ * find out why (maybe because api.versionsFrom is used? Or maybe just all
+ * packages always depend on "meteor"?).
  */
 function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     function apiDot(name, ...signature) {
@@ -288,6 +292,17 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     // TODO v1.0.0: Parse char by char instead of with regexes for package.* calls.
     packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
+    // Get the package description from the Package.describe call.
+    var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
+    if (packageDescription) {
+        packageDescription = new RegExp(singleLevelObjectRegex).exec(packageDescription[0])
+        if (packageDescription) {
+            // We have to eval the object literal string. We can't use
+            // JSON.parse because it's not valid JSON.
+            eval("packageDescription = "+packageDescription[0])
+        }
+    }
+
     // Get the dependencies based on api.use calls.
     // TODO: Also include in the result which architecture each dependency is for.
     var dependencies = []
@@ -295,8 +310,8 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var apiDotUseCalls = packageDotJsSource.match(r`/${apiDotUseRegex}/g`)
     if (apiDotUseCalls) {
         dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
-            //TODO match first arg.
-            var packageStrings = apiDotUseCall.match(r`/${stringRegex}/g`)
+            var packageStrings = apiDotUseCall
+                .match(r`/${stringOrStringArrayRgx}/g`)[0].match(r`/${stringRegex}/g`)
             if (packageStrings) {
                 packageStrings = _.map(packageStrings, function(packageString) {
                     return packageString.replace(/['"]/g, '')
@@ -312,8 +327,8 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var addedFiles = []
     if (apiDotAddFilesCalls) {
         addedFiles = _.reduce(apiDotAddFilesCalls, function(result, apiDotAddFilesCall) {
-            //TODO match first arrg
-            var fileNameStrings = apiDotAddFilesCall.match(r`/${stringRegex}/g`)
+            var fileNameStrings = apiDotAddFilesCall
+                .match(r`/${stringOrStringArrayRgx}/g`)[0].match(r`/${stringRegex}/g`)
             if (fileNameStrings) {
                 fileNameStrings = _.map(fileNameStrings, function(fileNameString) {
                     return fileNameString.replace(/['"]/g, '')
@@ -322,15 +337,6 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
             }
             return result
         }, addedFiles)
-    }
-
-    // Get the package description from the Package.describe call.
-    var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
-    if (packageDescription) {
-        packageDescription = new RegExp(singleLevelObjectRegex).exec(packageDescription[0])
-        if (packageDescription) {
-            eval("packageDescription = "+packageDescription[0])
-        }
     }
 
     var isopackPath = getIsopackPath(packageDescription.name)
@@ -384,7 +390,7 @@ function isoOrUni(isopackPath) {
     return null
 }
 
-var platformNames = [
+var PLATFORM_NAMES = [
     'os',
     'web.browser',
     'web.cordova'
@@ -406,7 +412,7 @@ var platformNames = [
  */
 function getDependenciesFromPlatformFiles(isopackPath) {
     // get the `uses` array of each platform file and merge them together uniquely.
-    var dependencies = _.reduce(platformNames, function(dependencies, name) {
+    var dependencies = _.reduce(PLATFORM_NAMES, function(dependencies, name) {
         var pathToFile = path.resolve(isopackPath, name+'.json')
         if (fs.existsSync(pathToFile)) {
             var info = JSON.parse(fs.readFileSync(pathToFile).toString())
@@ -440,7 +446,7 @@ function getAddedFilesFromIsopack(isopackPath) {
     var packageName = isoUniResult.name
     var isopackName = toIsopackName(packageName)
 
-    var files = _.reduce(platformNames, function(files, platformName) {
+    var files = _.reduce(PLATFORM_NAMES, function(files, platformName) {
         var compiledFilePath = path.resolve(
             isopackPath, platformName, 'packages', isopackName+'.js')
 
@@ -719,7 +725,7 @@ _.assign(CompileManager.prototype, {
             path: compileStep.inputPath,
             data: "/*_____rocket_module_____:not-compiled*/ throw new Error('Rocket:module needs to be installed in your app for some code to work: meteor add rocket:module') \n"+compileStep.read().toString(),
             sourcePath: compileStep.inputPath,
-            bare: true
+            bare: false
         })
 
         // keep track of this so when we run on the app side we can detect when
@@ -761,25 +767,28 @@ _.assign(CompileManager.prototype, {
             while ( fs.existsSync(batchDir) )
         }()
 
-        function getModuleSource(modifiedPackageInfo, fileName) {
+        function getModuleSource(extendedPackageInfo, fileName) {
             var source
 
-            for (var i = 0; i<platformNames.length; i+=1) {
-                console.log('\n --- modifiedPackageInfo.isopackPath:', modifiedPackageInfo.isopackPath)
-                compiledFilePath = path.resolve(modifiedPackageInfo.isopackPath,
-                    platformNames[i], "packages", toIsopackName(modifiedPackageInfo.name)+'.js')
+            for (var i = 0, len = PLATFORM_NAMES.length; i<len; i+=1) {
+                compiledFilePath = path.resolve(extendedPackageInfo.isopackPath,
+                    PLATFORM_NAMES[i], "packages", toIsopackName(extendedPackageInfo.name)+'.js')
 
                 if (fs.existsSync(compiledFilePath)) {
                     compiledFileSource = fs.readFileSync(compiledFilePath).toString()
-                    console.log('\n $$$$$$$$$ \n Compiled Source:', compiledFileSource)
 
                     if (compiledFileSource.match(FILENAME_REGEX)) {
-                        console.log('\nMATCHES!!!!\n', compiledFileSource.match(FILENAME_REGEX))
-                        source = compiledFileSource
+                        // regex for code that isn't bare:true.
+                        let sourceRegex = r`\(function \(\) {\n\n${FILENAME_REGEX}(\n(.*|.*\/\/ \d+))+\n\/+\n\n}\)\.call\(this\);`
+
+                        source = compiledFileSource.match(sourceRegex)
+
+                        console.log('\n ################## SOURCE: \n', source)
                         break
                     }
                 }
             }
+            process.exit()
             return source ? source : null
         }
 
@@ -795,7 +804,7 @@ _.assign(CompileManager.prototype, {
             _.each(dependents, function(dependent) {
                 _.each(dependent.files, function(file, i, files) {
                     files[i] = {
-                        file: file,
+                        name: file,
                         source: getModuleSource(dependent, file)
                     }
                 })
@@ -804,8 +813,12 @@ _.assign(CompileManager.prototype, {
             return dependents
         }
 
-        var moduleFiles = getModuleFileNames()
-        console.log('\n --- module file names: ', moduleFiles[1].files)
+        var packageInfos = getModuleFileNames()
+        _.each(packageInfos, (info) => {
+            _.each(info.files, (fileInfo) => {
+                console.log('\n --- module file: \n', fileInfo.name)
+            })
+        })
         process.exit()
 
         /*
