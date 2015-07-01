@@ -78,8 +78,9 @@ apply until version 1.0.0.*
   - [x] In the batch handler, choose a new temporary location to handle the
         output of all the entry points all at once (on a per-batch basis instead
         of on a per-file basis).
-  - [ ] Get all the sources of module.js files of all the packages of the current app that depend
-        on rocket:module. Get the sources from the isopacks (local or not).
+  - [x] Get all the sources of module.js files of all the packages of the
+        current app that depend on rocket:module. Get the sources from the isopacks
+        (local or not).
   - [ ] Write these sources to the temporary location in some structure that
         organizes the files by package.
   - [ ] List all the files from the previous step in the webpack config's entry

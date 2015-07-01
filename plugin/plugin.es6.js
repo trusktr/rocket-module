@@ -289,7 +289,7 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     var packageDotOnTestRegex   = r`/Package\s*\.\s*onTest\s*\(\s*function\s*\(\s*${r.identifier}\s*\)\s*{\s*(${apiCallRegex})+\s*}\s*\)/g`
 
     // Remove Package.onTest calls, for now.
-    // TODO v1.0.0: Parse char by char instead of with regexes for package.* calls.
+    // TODO TODO v1.0.0: Parse char by char instead of with regexes for package.* calls.
     packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
     // Get the package description from the Package.describe call.
@@ -767,8 +767,17 @@ _.assign(CompileManager.prototype, {
             while ( fs.existsSync(batchDir) )
         }()
 
-        function getModuleSource(extendedPackageInfo, fileName) {
+        function getModuleSourceAndPlatforms(extendedPackageInfo, fileName) {
+            var r = regexr
+
             var source
+            var platforms = []
+
+            // We know our module file sources are bare, wrapped in a closure.
+            var closureBeginRegex = r`\(function \(\) {\n\n`
+            var closureEndRegex = r`\n\n}\)\.call\(this\);`
+
+            fileName = escapeRegExp(`packages/${extendedPackageInfo.name}/${fileName}`)
 
             for (var i = 0, len = PLATFORM_NAMES.length; i<len; i+=1) {
                 compiledFilePath = path.resolve(extendedPackageInfo.isopackPath,
@@ -778,47 +787,54 @@ _.assign(CompileManager.prototype, {
                     compiledFileSource = fs.readFileSync(compiledFilePath).toString()
 
                     if (compiledFileSource.match(FILENAME_REGEX)) {
-                        // regex for code that isn't bare:true.
-                        let sourceRegex = r`\(function \(\) {\n\n${FILENAME_REGEX}(\n(.*|.*\/\/ \d+))+\n\/+\n\n}\)\.call\(this\);`
 
-                        source = compiledFileSource.match(sourceRegex)
+                        // We take advantage of the fact that sources are currently separate by 7 lucky new lines in isopack files.
+                        let enclosedSources = compiledFileSource.split('\n\n\n\n\n\n\n')
 
-                        console.log('\n ################## SOURCE: \n', source)
-                        break
+                        for ( let j = 0, len = enclosedSources.length; j<len; j+=1) {
+
+                            // if the target source exists in this platform file
+                            if (enclosedSources[j].match(FILENAME_REGEX)[0]
+                                .match(r`/${fileName}/g`)) {
+
+                                if (!source)
+                                    source = enclosedSources[j].replace(r`^${closureBeginRegex}`, '')
+                                        .replace(r`${closureEndRegex}$`, '')
+
+                                platforms.push(PLATFORM_NAMES[i])
+                                break // we've found the source file we're looking for
+                            }
+                        }
                     }
                 }
             }
-            process.exit()
-            return source ? source : null
+
+            return {
+                source: source ? source : null,
+                platforms: platforms
+            }
         }
 
-        /**
-         * @return {Array.string} A list of module.js files in the whole application.
-         *
-         * TODO: Rename this
-         */
-        function getModuleFileNames() {
-            // dependents is an array of PackageInfo
-            var dependents = getDependentsOf('rocket:module')
+        // dependents is an array of PackageInfo
+        let dependents = getDependentsOf('rocket:module')
+        let moduleFiles = []
 
-            _.each(dependents, function(dependent) {
-                _.each(dependent.files, function(file, i, files) {
-                    files[i] = {
-                        name: file,
-                        source: getModuleSource(dependent, file)
-                    }
-                })
-            })
+        // Add the sources of each file into the PackageInfo
+        // XXX Do this in getPackageInfo instead?
+        _.each(dependents, function(dependent) {
+            _.each(dependent.files, function(file, i, files) {
+                files[i] = _.extend({
+                    name: file
+                }, getModuleSourceAndPlatforms(dependent, file))
 
-            return dependents
-        }
+                console.log(' --- module files ', dependent.name+'/'+files[i].name, files[i].platforms)
 
-        var packageInfos = getModuleFileNames()
-        _.each(packageInfos, (info) => {
-            _.each(info.files, (fileInfo) => {
-                console.log('\n --- module file: \n', fileInfo.name)
+                if (files[i].name.match(/module\.js/)) {
+                    moduleFiles.push(files[i])
+                }
             })
         })
+
         process.exit()
 
         /*
