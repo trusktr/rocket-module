@@ -18,6 +18,7 @@ var USER_HOME     = Npm.require('user-home')
 var fse           = Npm.require('fs-extra')
 var async         = Npm.require('async')
 var regexr        = Npm.require('regexr')
+var mkdirp        = Npm.require('mkdirp')
 
 // Meteor package imports
 var webpack        = Package['rocket:webpack'].Webpack
@@ -107,6 +108,16 @@ function getLines(file) {
 function getFileName(filePath) {
     var parts = filePath.split(path.sep)
     return parts[parts.length-1]
+}
+
+/**
+ * Get all but the last part of a full path.
+ *
+ * @param {string} filePath A path to a file.
+ * @return {string} The path.
+ */
+function getPath(filePath) {
+    return filePath.replace(getFileName(filePath), '')
 }
 
 /**
@@ -755,18 +766,6 @@ _.assign(CompileManager.prototype, {
         var app = getAppDir()
         if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
 
-        /*
-         * Choose a temporary output location that doesn't exist yet.
-         */
-        ~function() {
-            // TODO: handle tmpLocation for different platforms. Perhaps just
-            // do it in a hidden folder in the application.
-            var tmpLocation = path.sep+'tmp'
-
-            do batchDir = path.resolve(tmpLocation, 'meteor-'+getAppId(), 'batch-'+rndm(24))
-            while ( fs.existsSync(batchDir) )
-        }()
-
         function getModuleSourceAndPlatforms(extendedPackageInfo, fileName) {
             var r = regexr
 
@@ -815,26 +814,56 @@ _.assign(CompileManager.prototype, {
             }
         }
 
-        // dependents is an array of PackageInfo
-        let dependents = getDependentsOf('rocket:module')
         let moduleFiles = []
 
-        // Add the sources of each file into the PackageInfo
-        // XXX Do this in getPackageInfo instead?
-        _.each(dependents, function(dependent) {
-            _.each(dependent.files, function(file, i, files) {
-                files[i] = _.extend({
-                    name: file
-                }, getModuleSourceAndPlatforms(dependent, file))
+        ~function() {
+            // dependents is an array of PackageInfo
+            let dependents = getDependentsOf('rocket:module')
 
-                console.log(' --- module files ', dependent.name+'/'+files[i].name, files[i].platforms)
+            // Add the sources of each file into the PackageInfo
+            // XXX Do this in getPackageInfo instead?
+            _.each(dependents, function(dependent) {
+                _.each(dependent.files, function(file, i, files) {
+                    files[i] = _.extend({
+                        package: dependent.name,
+                        name: file
+                    }, getModuleSourceAndPlatforms(dependent, file))
 
-                if (files[i].name.match(/module\.js/)) {
-                    moduleFiles.push(files[i])
+                    if (files[i].name.match(/module\.js$/)) {
+                        moduleFiles.push(files[i])
+                    }
+                })
+            })
+        }()
+
+        // TODO: handle tmpLocation for different platforms. Perhaps just
+        // do it in a hidden folder in the application.
+        let tmpLocation = path.sep+'tmp'
+
+        /*
+         * Choose a temporary output location that doesn't exist yet.
+         */
+        ~function() {
+            do batchDir = path.resolve(tmpLocation, 'meteor-'+getAppId(), 'batch-'+rndm(24))
+            while ( fs.existsSync(batchDir) )
+        }()
+
+        /*
+         * Write the module sources to the batchDir.
+         */
+        ~function() {
+            _.each(moduleFiles, (fileInfo) => {
+                let packagePath = path.resolve(batchDir, fileInfo.package)
+                let filePath = path.resolve(packagePath, getPath(fileInfo.name))
+                mkdirp.sync(filePath)
+                try {
+                    fs.writeFileSync(path.resolve(packagePath, fileInfo.name), fileInfo.source)
+                }
+                catch(e) {
+                    throw new Error(' --- Error writing module file: ', path.resolve(packagePath, fileInfo.name))
                 }
             })
-        })
-
+        }()
         process.exit()
 
         /*

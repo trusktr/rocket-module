@@ -27,7 +27,8 @@ Package.registerBuildPlugin({
         'user-home': '1.1.1',
         'fs-extra': '0.18.4',
         'async': '1.2.0',
-        'regexr': '1.1.1'
+        'regexr': '1.1.1',
+        'mkdirp': '0.5.1'
     }
 })
 

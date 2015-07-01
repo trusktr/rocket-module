@@ -105,6 +105,14 @@
     "lodash": {
       "version": "3.8.0"
     },
+    "mkdirp": {
+      "version": "0.5.1",
+      "dependencies": {
+        "minimist": {
+          "version": "0.0.8"
+        }
+      }
+    },
     "regexr": {
       "version": "1.1.1"
     },
