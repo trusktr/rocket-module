@@ -83,14 +83,14 @@ apply until version 1.0.0.*
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
-  - [ ] List all the files from the previous step in the webpack config's entry
-        option as an array of file names. We'll have to modify the defaultConfig
-        function.
-  - [ ] link a node_modules folder in each paackage folder of the temporary
+  - [ ] link a node_modules folder in each package folder of the temporary
         location to a respective npm/node_modules folder of each isopack. (This
         replaces the current code that creates a node_modules link to a local package's
         .npm/node_modules folder.)
-  - [ ] List these node_modules folders as places to look for dependencies in
+  - [ ] List all the files from the previous step in the webpack config's entry
+        option as an array of file names. We'll have to modify the defaultConfig
+        function.
+  - [ ] List all the node_modules folders as places to look for dependencies in
         the webpack config (I'm hoping that webpack can have multiple node_modules
         folders to look in. This feature is temporary, to be replaced in a following
         step with a custom dependencies file that rocket:module will use to install all
