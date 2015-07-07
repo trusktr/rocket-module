@@ -817,7 +817,7 @@ _.assign(CompileManager.prototype, {
 
         let moduleFiles = []
 
-        ~function() {
+        {
             // dependents is an array of PackageInfo
             let dependents = getDependentsOf('rocket:module')
 
@@ -835,7 +835,7 @@ _.assign(CompileManager.prototype, {
                     }
                 })
             })
-        }()
+        }
 
         // TODO: handle tmpLocation for different platforms. Perhaps just
         // do it in a hidden folder in the application.
@@ -844,15 +844,15 @@ _.assign(CompileManager.prototype, {
         /*
          * Choose a temporary output location that doesn't exist yet.
          */
-        ~function() {
+        {
             do batchDir = path.resolve(tmpLocation, 'meteor-'+getAppId(), 'batch-'+rndm(24))
             while ( fs.existsSync(batchDir) )
-        }()
+        }
 
         /*
          * Write the module sources to the batchDir.
          */
-        ~function() {
+        {
             _.each(moduleFiles, (fileInfo) => {
                 let packagePath = path.resolve(batchDir, fileInfo.package)
                 let filePath = path.resolve(packagePath, getPath(fileInfo.name))
@@ -864,7 +864,7 @@ _.assign(CompileManager.prototype, {
                     throw new Error(' --- Error writing module file: ', path.resolve(packagePath, fileInfo.name))
                 }
             })
-        }()
+        }
         process.exit()
 
         /*
@@ -873,13 +873,13 @@ _.assign(CompileManager.prototype, {
          * TODO: Work entirely in the /tmp folder instead of creating the link
          * inside the currentPackage.
          */
-        ~function() {
+        {
             currentPackage = packageDir(compileStep)
-            var modulesLink = path.resolve(currentPackage, 'node_modules')
-            var modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
+            let modulesLink = path.resolve(currentPackage, 'node_modules')
+            let modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
             if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
             fs.symlinkSync(modulesSource, modulesLink)
-        }()
+        }
 
         /*
          * Extend the default Webpack configuration with the user's
@@ -891,28 +891,28 @@ _.assign(CompileManager.prototype, {
          * TODO: Move the Npm.require here to the top of the file, for ES6
          * Module compatibility.
          */
-        ~function() {
+        {
             //output = path.resolve(output, compileStep.pathForSourceMap)
-            var pathToConfig = path.join(packagesDirRelativeToNodeModules(),
+            let pathToConfig = path.join(packagesDirRelativeToNodeModules(),
                 getFileName(currentPackage), 'webpack.config.js')
-            var config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
+            let config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
                 Npm.require(pathToConfig) : {}
             config = _.merge(this.defaultConfig(compileStep, output), config)
             webpackCompiler = webpack(config)
-        }()
+        }
 
         /*
          * Run the Webpack compiler synchronously and give the result back to Meteor.
          */
-        ~function() {
-            var webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
+        {
+            let webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
             compileStep.addJavaScript({
                 path: compileStep.inputPath,
                 data: fs.readFileSync(output).toString(),
                 sourcePath: compileStep.inputPath,
                 bare: true
             })
-        }()
+        }
     }
 })
 
