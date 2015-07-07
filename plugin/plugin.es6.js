@@ -117,7 +117,8 @@ function getFileName(filePath) {
  * @return {string} The path.
  */
 function getPath(filePath) {
-    return filePath.replace(getFileName(filePath), '')
+    let result = filePath.replace(getFileName(filePath), '')
+    return result.replace(/\/$/, '') // remove trailing slash if any.
 }
 
 /**
@@ -593,7 +594,7 @@ function getPackageInfo(packageName, packageVersion) {
                     PackageVersion.compare(getInstalledVersion(packageName), packageVersion) === 0)
     ) {
         let packageDotJsSource = fs.readFileSync(packageDotJsPath).toString()
-        packageInfo = getInfoFromPackageDotJs(packageDotJsSource, packageDotJsPath.replace(path.sep+getFileName(packageDotJsPath), ''))
+        packageInfo = getInfoFromPackageDotJs(packageDotJsSource, getPath(packageDotJsPath))
     }
 
     // Otherwise check ~/.meteor/packages, and either find the package with the
