@@ -852,19 +852,17 @@ _.assign(CompileManager.prototype, {
         /*
          * Write the module sources to the batchDir.
          */
-        {
-            _.each(moduleFiles, (fileInfo) => {
-                let packagePath = path.resolve(batchDir, fileInfo.package)
-                let filePath = path.resolve(packagePath, getPath(fileInfo.name))
-                mkdirp.sync(filePath)
-                try {
-                    fs.writeFileSync(path.resolve(packagePath, fileInfo.name), fileInfo.source)
-                }
-                catch(e) {
-                    throw new Error(' --- Error writing module file: ', path.resolve(packagePath, fileInfo.name))
-                }
-            })
-        }
+        _.each(moduleFiles, (fileInfo) => {
+            let packagePath = path.resolve(batchDir, 'packages', fileInfo.package)
+            let filePath = path.resolve(packagePath, getPath(fileInfo.name))
+            mkdirp.sync(filePath)
+            try {
+                fs.writeFileSync(path.resolve(packagePath, fileInfo.name), fileInfo.source)
+            }
+            catch(e) {
+                throw new Error(' --- Error writing module file: ', path.resolve(packagePath, fileInfo.name))
+            }
+        })
         process.exit()
 
         /*
