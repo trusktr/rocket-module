@@ -75,39 +75,53 @@ apply until version 1.0.0.*
       files in all package (local or not) of the application. In the future this
       batchHandler will be replaced by Meteor's Plugin.registerBatchHandler or
       Plugin.registerCompiler, whenever that gets introduced.)
-  - [x] In the batch handler, choose a new temporary location to handle the
-        output of all the entry points all at once (on a per-batch basis instead
-        of on a per-file basis).
+  - [ ] In the batch handler, choose a temporary location to handle the output
+        of all the entry points all at once (on a per-batch basis instead of on a
+        per-file basis). Put the temporary location into .meteor of the current
+        application to be compatible with Windows since Windows doesn't have a /tmp.
   - [x] Get all the sources of module.js files of all the packages of the
         current app that depend on rocket:module. Get the sources from the isopacks
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
-  - [ ] link a node_modules folder in each package folder of the temporary
-        location to a respective npm/node_modules folder of each isopack. (This
-        replaces the current code that creates a node_modules link to a local package's
-        .npm/node_modules folder.)
-  - [ ] List all the files from the previous step in the webpack config's entry
-        option as an array of file names. We'll have to modify the defaultConfig
-        function.
-  - [ ] List all the node_modules folders as places to look for dependencies in
-        the webpack config (I'm hoping that webpack can have multiple node_modules
-        folders to look in. This feature is temporary, to be replaced in a following
-        step with a custom dependencies file that rocket:module will use to install all
-        npm dependencies in a single place in preparation for code splitting. Packages
-        won't use Npm.depends anymore.)
-  - [ ] Make sure we still override the defaultConfig using each package's config.
-  - [ ] Specify an output filename format for each file, then run webpack.
-  - [ ] Instead of using compileStep.addJavaScript, we'll now loop through all
-        the output files and write each one back to their original locations in the
-        isopacks. We need to make sure to handle each one on a per architecture basis,
-        and we also need to update each arch json file to contain the result file's byte
-        lengths.
-
-### v0.3.0
-- [ ] Now we'll go back and modify the node_modules handling so that
-      rocket:module will get all dependencies at once and handle code splitting.
-      This item will be split into a series of steps once we ge here.
+  - [ ] List all the files from the previous step in the webpack
+        config's entry option as an object of file names. The keys are the
+        filename including the package name but without the .js extension. For
+        example: 'username:packagename/path/to/file'.
+  - [ ] In the source handler (for both publish builds and app builds), list
+        the npm packages that are depended on (specified with Npm.depends in a
+        package's package.js file) in a comment alongside the entrypoint source so it
+        ends up in the isopack.
+  - [ ] For each package, write the npm dependencies (of the previous step,
+        during app build), retrieved from a package's isopack, to package.json in
+        the respective temporary location for the given package. Also put the isopack
+        name and version 0.0.0 in the package.json.
+  - [ ] Write a package.json file in the parent folder of the packages folder
+        containing all the packages (of the temporary location). In it list each
+        package as a dependency using the 'file:...' notation, using the isopack name
+        of each package for the package names.
+  - [ ] Run `npm install` in the parent folder of the packages folder.
+  - [ ] List all the node_modules folders of each package that was installed
+        into node_modules of the parent-of-packages-folder as places to look for
+        dependencies in webpack config's resolve.fallback option.
+  - [ ] Specify output.filename as '[name].js' and output.path as './built',
+        add the CommonsChunkPlugin and specify the common chunk name as
+        'shared.js', change dir to the parent-of-packages-folder, then run webpack!
+        We've successfully code-splitted shared dependencies of all packages! woooo!
+  - [ ] Now loop through all the output files and write each one back to their
+        original locations in the isopacks. We need to make sure to handle each one
+        on a per architecture basis, and we also need to update each arch json file to
+        contain the result file's byte lengths. At this point, the modified isopacks
+        should run in the application!
+    - [ ] Write the shared.js file into the first isopack that gets loaded
+          before other isopacks. How do we determine which one this is? Does
+          Meteor's build system fire the source handler in order of lowest dependency
+          first? If so, we can detect which module file was handled first and write the
+          shared file right before that entry point. If that doesn't work, perhaps we
+          can add a dummy file to rocket:module that gets handled by it's own source
+          handler, and since all packages are depending on rocket:module, we can write
+          the shared.js file to that location of rocket:module's isopack and therefore
+          it will load before all the other entry points.
 
 ### v1.0.0
 - [ ] Move utility functions to a new package.
