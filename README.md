@@ -84,14 +84,11 @@ apply until version 1.0.0.*
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
-  - [x] List all the files from the previous step in the webpack
-        config's entry option as an object of file names. The keys are the
-        filename including the package name but without the .js extension. For
-        example: 'username:packagename/path/to/file'.
-  - [ ] In the source handler (for both publish builds and app builds), list
-        the npm packages that are depended on (specified with Npm.depends in a
-        package's package.js file) in a comment alongside the entrypoint source so it
-        ends up in the isopack.
+  - [x] List all the files from the previous step in the webpack config's entry
+        option as an object of file names. The keys are the filename including the
+        package name. For example: 'username_packagename/path/to/file.js'.
+  - [x] Get the npm dependencies of each pacakge (add this to the result of
+        getPackageInfo)
   - [ ] For each package, write the npm dependencies (of the previous step,
         during app build), retrieved from a package's isopack, to package.json in
         the respective temporary location for the given package. Also put the isopack
@@ -128,9 +125,14 @@ apply until version 1.0.0.*
 - [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Fine tune anything? Finalize configuration API.
 - [ ] Update README with usage and configuration documentation.
+  - [ ] Describe how to use npm dependencies in an app directly, using a spare
+        local package (basically like what meteorhacks:npm does).
 - [ ] Celebrate! Wooooo!
 
 ### v1.x.x
+- [ ] Support npm dependencies for apps that already use meteorhacks:npm.
+ - [ ] Simply detect meteorhacks:npm alongside dependents of rocket:module and
+       install those dependencies.
 - [ ] Detect and deal with certain conditions.
   - [ ] When recompiling a local package during an app-rebuild (meteor is already
         running, not its first run), detect if the package's dependencies have

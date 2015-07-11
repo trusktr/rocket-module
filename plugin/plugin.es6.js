@@ -282,47 +282,60 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         return r`/(api\s*\.\s*${name}\s*\(\s*(${signature})\s*\)\s*;*)/g`
     }
 
-    var r = regexr
-    var stringRegex             = r`/['"][^'"]*['"]/g`
-    var stringArrayRegex        = r`/\[(\s*(${stringRegex}\s*,?)\s*)*\]/g`
-    var stringOrStringArrayRgx  = r`/${stringRegex}|${stringArrayRegex}/g`
-    var singleLevelObjectRegex  = r`{[^{}]*}` // can be improved, but works for this purpose
+    let r = regexr
+    let stringRegex             = r`/['"][^'"]*['"]/g`
+    let stringArrayRegex        = r`/\[(\s*(${stringRegex}\s*,?)\s*)*\]/g`
+    let stringOrStringArrayRgx  = r`/${stringRegex}|${stringArrayRegex}/g`
+    let singleLevelObjectRegex  = r`{[^{}]*}` // can be improved, but works for this purpose
 
-    var apiDotVersionsFromRegex = apiDot('versionsFrom', stringOrStringArrayRgx)
-    var apiDotUseRegex          = r`(${apiDot('use', stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
-    var apiDotImplyRegex        = r`(${apiDot('imply', stringOrStringArrayRgx)}|${apiDot('imply', stringOrStringArrayRgx, stringOrStringArrayRgx)})`
-    var apiDotExportRegex       = r`(${apiDot('export', stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
-    var apiDotAddFilesRegex     = r`(${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+    let apiDotVersionsFromRegex = apiDot('versionsFrom', stringOrStringArrayRgx)
+    let apiDotUseRegex          = r`(${apiDot('use', stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('use', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+    let apiDotImplyRegex        = r`(${apiDot('imply', stringOrStringArrayRgx)}|${apiDot('imply', stringOrStringArrayRgx, stringOrStringArrayRgx)})`
+    let apiDotExportRegex       = r`(${apiDot('export', stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot('export', stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot('use', stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
+    let apiDotAddFilesRegex     = r`(${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, singleLevelObjectRegex)}|${apiDot(r`(addFiles|add_files)`, stringOrStringArrayRgx, stringOrStringArrayRgx, singleLevelObjectRegex)})`
                                                            // ^ also add_files for COMPAT WITH 0.8.x
 
-    var apiCallRegex = r`(${apiDotVersionsFromRegex}|${apiDotUseRegex}|${apiDotImplyRegex}|${apiDotExportRegex}|${apiDotAddFilesRegex})`
+    let apiCallsRegex = r`(${apiDotVersionsFromRegex}|${apiDotUseRegex}|${apiDotImplyRegex}|${apiDotExportRegex}|${apiDotAddFilesRegex})`
 
-    var packageDotDescribeRegex = r`/Package\s*\.\s*describe\s*\(\s*${singleLevelObjectRegex}\s*\)/g`
-    var packageDotOnTestRegex   = r`/Package\s*\.\s*onTest\s*\(\s*function\s*\(\s*${r.identifier}\s*\)\s*{\s*(${apiCallRegex})+\s*}\s*\)/g`
+    let npmDotDependsRegex = r`/Npm\s*\.\s*depends\s*\(\s*${singleLevelObjectRegex}\s*\)/g`
+
+    let packageDotDescribeRegex = r`/Package\s*\.\s*describe\s*\(\s*${singleLevelObjectRegex}\s*\)/g`
+    let packageDotOnTestRegex   = r`/Package\s*\.\s*onTest\s*\(\s*function\s*\(\s*${r.identifier}\s*\)\s*{\s*(${apiCallsRegex})+\s*}\s*\)/g`
 
     // Remove Package.onTest calls, for now.
-    // TODO TODO v1.0.0: Parse char by char instead of with regexes for package.* calls.
+    // TODO TODO v1.0.0: We can't write recursive regexes in JavaScript, so
+    // parse char by char instead of with regexes for package.* calls. Or just
+    // look for info only in isopacks to avoid this altogether?
     packageDotJsSource = packageDotJsSource.replace(packageDotOnTestRegex, '')
 
     // Get the package description from the Package.describe call.
-    var packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
+    let packageDescription = packageDotDescribeRegex.exec(packageDotJsSource)
+    packageDescription = new RegExp(singleLevelObjectRegex).exec(packageDescription[0])
     if (packageDescription) {
-        packageDescription = new RegExp(singleLevelObjectRegex).exec(packageDescription[0])
-        if (packageDescription) {
+        // We have to eval the object literal string. We can't use
+        // JSON.parse because it's not valid JSON.
+        eval("packageDescription = "+packageDescription[0])
+    }
+
+    // Get npm dependencies from the Npm.depends call if any.
+    let npmDependencies = npmDotDependsRegex.exec(packageDotJsSource)
+    if (npmDependencies) {
+        npmDependencies = new RegExp(singleLevelObjectRegex).exec(npmDependencies[0])
+        if (npmDependencies) {
             // We have to eval the object literal string. We can't use
             // JSON.parse because it's not valid JSON.
-            eval("packageDescription = "+packageDescription[0])
+            eval("npmDependencies = "+npmDependencies[0])
         }
     }
 
     // Get the dependencies based on api.use calls.
     // TODO: Also include in the result which architecture each dependency is for.
-    var dependencies = []
+    let dependencies = []
     // TODO: Extend RegExp in regexr and add a .flags() method for easily changing the flags.
-    var apiDotUseCalls = packageDotJsSource.match(r`/${apiDotUseRegex}/g`)
+    let apiDotUseCalls = packageDotJsSource.match(r`/${apiDotUseRegex}/g`)
     if (apiDotUseCalls) {
         dependencies = _.reduce(apiDotUseCalls, function(result, apiDotUseCall) {
-            var packageStrings = apiDotUseCall
+            let packageStrings = apiDotUseCall
                 .match(r`/${stringOrStringArrayRgx}/g`)[0].match(r`/${stringRegex}/g`)
             if (packageStrings) {
                 packageStrings = _.map(packageStrings, function(packageString) {
@@ -335,11 +348,11 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
     }
 
     // get the added files based on api.addFiles calls.
-    var apiDotAddFilesCalls = packageDotJsSource.match(r`/${apiDotAddFilesRegex}/g`)
-    var addedFiles = []
+    let apiDotAddFilesCalls = packageDotJsSource.match(r`/${apiDotAddFilesRegex}/g`)
+    let addedFiles = []
     if (apiDotAddFilesCalls) {
         addedFiles = _.reduce(apiDotAddFilesCalls, function(result, apiDotAddFilesCall) {
-            var fileNameStrings = apiDotAddFilesCall
+            let fileNameStrings = apiDotAddFilesCall
                 .match(r`/${stringOrStringArrayRgx}/g`)[0].match(r`/${stringRegex}/g`)
             if (fileNameStrings) {
                 fileNameStrings = _.map(fileNameStrings, function(fileNameString) {
@@ -351,12 +364,13 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
         }, addedFiles)
     }
 
-    var isopackPath = getIsopackPath(packageDescription.name)
+    let isopackPath = getIsopackPath(packageDescription.name)
 
     return _.assign(packageDescription, {
         localPath: packagePath,
         isopackPath: isopackPath,
         dependencies: dependencies, // empty array if no dependencies are found
+        npmDependencies: npmDependencies,
         files: addedFiles // empty array if no files are added
     })
 }
@@ -365,7 +379,7 @@ function getInfoFromPackageDotJs(packageDotJsSource, packagePath) {
  * Given an isopack, get the JSON result from isopack.json if it exists, then
  * unipackage.json if it exists, otherwise null if neither exist.
  *
- * @param {string} isopackPath The path to an isopack.
+ * @param {string} isopackPath The full path to an isopack.
  * @return {Object|null} The JSON.parsed result, or null if the files are not
  * found.
  */
@@ -412,7 +426,7 @@ var PLATFORM_NAMES = [
  * Get the dependencies from an isopack's os.json, web.browser.json,
  * and web.cordova.json files.
  *
- * @param {string} isopackPath The path to an isopack.
+ * @param {string} isopackPath The full path to an isopack.
  * @return {Array.string} An array of package constraint strings being the
  * dependencies of the given isopack.
  *
@@ -422,7 +436,7 @@ var PLATFORM_NAMES = [
  *
  * XXX: Do we have to handle specific architectures like "os.linux"?
  */
-function getDependenciesFromPlatformFiles(isopackPath) {
+function getDependenciesFromIsopack(isopackPath) {
     // get the `uses` array of each platform file and merge them together uniquely.
     var dependencies = _.reduce(PLATFORM_NAMES, function(dependencies, name) {
         var pathToFile = path.resolve(isopackPath, name+'.json')
@@ -445,7 +459,7 @@ function getDependenciesFromPlatformFiles(isopackPath) {
  * Get the a list of files that were added to a package (using api.addFiles)
  * from its isopack.
  *
- * @param {string} isopackPath The path to an isopack.
+ * @param {string} isopackPath The full path to an isopack.
  * @return {Array.string} An array containing the full names of added files.
  * Empty if there are none.
  *
@@ -482,17 +496,51 @@ function getAddedFilesFromIsopack(isopackPath) {
 }
 
 /**
+ * Get a list of npm packages that the isopack depends on.
+ *
+ * @param {string} isopackPath The full path to an isopack.
+ * @return {Object} An object listing npm dependencies, just like what you'd
+ * pass into Npm.depends.
+ */
+function getNpmDependenciesFromIsopack(isopackPath) {
+    let npmPath = path.resolve(isopackPath, 'npm', 'node_modules')
+    let packages
+
+    let npmDependencies = null
+
+    if (fs.existsSync(npmPath)) {
+        packages = fs.readdirSync(npmPath)
+
+        // remove hidden folders
+        packages = _.filter(packages, function(package) {
+            return !package.match(/^\./)
+        })
+    }
+
+    if (packages && packages.length) {
+        npmDependencies = {}
+
+        _.each(packages, function(package) {
+            let packageDotJson = path.resolve(npmPath, package, 'package.json')
+            packageDotJson = JSON.parse(fs.readFileSync(packageDotJson).toString())
+
+            npmDependencies[package] = packageDotJson.version
+        })
+    }
+
+    return npmDependencies
+}
+
+/**
  * Get PackageInfo from an isopack (usually a package in the global
  * ~/.meteor/packages directory or application's .meteor/local/isopacks
  * directory).
  *
- * @param {string} isopackPath The path to an isopack.
+ * @param {string} isopackPath The full path to an isopack.
  * @return {Object} A subset of the PackageInfo type that includes the `path` and
  * `dependencies` keys.
  *
- * TODO: Don't add packagePath here, add it externally with _.assign.
- *
- * TODO: Get added files from platform files.
+ * TODO: Don't add isopackPath here, add it externally with _.assign.
  */
 function getInfoFromIsopack(isopackPath) {
     var isoUniResult = isoOrUni(isopackPath)
@@ -504,12 +552,14 @@ function getInfoFromIsopack(isopackPath) {
         result = _.assign(result, _.pick(isoUniResult, 'name', 'summary', 'version'))
     }
 
-    dependencies = getDependenciesFromPlatformFiles(isopackPath)
+    dependencies = getDependenciesFromIsopack(isopackPath)
+    npmDependencies = getNpmDependenciesFromIsopack(isopackPath)
     addedFiles = getAddedFilesFromIsopack(isopackPath)
 
     result = _.assign(result, {
         isopackPath: isopackPath,
         dependencies: dependencies,
+        npmDependencies: npmDependencies,
         files: addedFiles
     })
 
@@ -785,8 +835,44 @@ _.assign(CompileManager.prototype, {
             }
         }
 
-        let moduleFiles = []
+        /*
+         * Choose a temporary output location that doesn't exist yet.
+         */
+        let tmpLocation = path.resolve(getAppPath(), '.meteor', '.rocket-module')
+        {
+            do batchDir = path.resolve(tmpLocation, 'batch-'+rndm(24))
+            while ( fs.existsSync(batchDir) )
+        }
 
+        // define the initial webpack configuration object.
+        let webpackConfig = {
+            entry: {
+                // f.e.:
+                //'username_packagename/one/one': './packages/username_packagename/one/one',
+                //'username_packagename/two/two': './packages/username_packagename/two/two',
+            },
+            output: {
+                path: path.resolve(batchDir, './built'),
+                filename: '[name]',
+            },
+            plugins: [ new webpack.optimize.CommonsChunkPlugin("shared-modules.js") ],
+            resolve: {
+                fallback: [
+                    // f.e.:
+                    //path.resolve('./node_modules/username_packagename/node_modules'),
+                    //path.resolve('./node_modules/username_packagename/node_modules')
+                ]
+            },
+            module: {
+                loaders: [
+                    { test: /\.css$/, loader: "style!css" }
+                    // TODO: get babel-loader working.
+                    //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
+                ]
+            }
+        }
+
+        let moduleFiles = []
         {
             // dependents is an array of PackageInfo
             let dependents = getDependentsOf('rocket:module')
@@ -805,45 +891,6 @@ _.assign(CompileManager.prototype, {
                     }
                 })
             })
-        }
-
-        // TODO: handle tmpLocation for different platforms. Perhaps just
-        // do it in a hidden folder in the application.
-        let tmpLocation = path.resolve(getAppPath(), '.meteor', '.rocket-module')
-
-        /*
-         * Choose a temporary output location that doesn't exist yet.
-         */
-        {
-            do batchDir = path.resolve(tmpLocation, 'batch-'+rndm(24))
-            while ( fs.existsSync(batchDir) )
-        }
-
-        let webpackConfig = {
-            entry: {
-                // f.e.:
-                //'username_packagename/one/one': './packages/username_packagename/one/one',
-                //'username_packagename/two/two': './packages/username_packagename/two/two',
-            },
-            output: {
-                path: path.resolve(batchDir, './built'),
-                filename: '[name]',
-            },
-            plugins: [ new webpack.optimize.CommonsChunkPlugin("shared-modules.js") ],
-            resolve: {
-                fallback: [
-                    // f.e.:
-                    //path.resolve('./node_modules/username_packagename/one/node_modules'),
-                    //path.resolve('./node_modules/username_packagename/two/node_modules')
-                ]
-            },
-            module: {
-                loaders: [
-                    { test: /\.css$/, loader: "style!css" }
-                    // TODO: get babel-loader working.
-                    //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
-                ]
-            }
         }
 
         /*
@@ -869,9 +916,6 @@ _.assign(CompileManager.prototype, {
 
         /*
          * Link the node_modules directory so modules can be resolved.
-         *
-         * TODO: Work entirely in the /tmp folder instead of creating the link
-         * inside the currentPackage.
          */
         {
             currentPackage = packageDir(compileStep)
@@ -1012,6 +1056,8 @@ function escapeRegExp(str) {
             // If there exist local isopacks dependent on rocket:module, delete
             // them from the filesystem, then tell the user to restart meteor
             // before finally exiting. On the next run this will be skipped.
+            // See the collowing comments after this conditional block to know
+            // why we need to do this.
             if (isopackNames.length) ~function() {
                 var removalTasks = []
 
@@ -1040,7 +1086,7 @@ function escapeRegExp(str) {
             // determine when the source handlers are done running so that we can
             // then run our batch handler to compile all the modules of all the
             // packages in the app using the batch handler. We won't need to do all
-            // this bookkeeping once Plugin.registerBatchHandler is released.
+            // this bookkeeping once Plugin.registerCompiler is released.
             var app = getAppPath()
             // only check the app for module.js files if rocket:module is installed for the app.
             if (appUsesRocketModule()) {
