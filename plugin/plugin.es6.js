@@ -42,7 +42,7 @@ var FILENAME_REGEX = regexr`/\/+\n\/\/ +\/\/\n\/\/ (packages\/(?:\S+:)?\S+\/\S+)
  * @return {string|null} The full path to the application we are in, or null if
  * we're not in an application.
  */
-function getAppDir() {
+function getAppPath() {
     return MeteorFilesHelpers.getAppPath()
 }
 
@@ -52,7 +52,7 @@ function getAppDir() {
  * @return {string|null} Return the path as a string, or null if we're not in an app.
  */
 function packagesDir() {
-    var app = getAppDir()
+    var app = getAppPath()
     if (app) return path.resolve(app, 'packages')
     return null
 }
@@ -133,7 +133,7 @@ function getPath(filePath) {
  */
 function getInstalledPackages(explicitlyInstalled) {
     var fileName = explicitlyInstalled ? 'packages' : 'versions'
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getInstalledPackages is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', fileName)
     var lines = getLines(packagesFile)
@@ -200,7 +200,7 @@ function isAppBuild() {
  * result.
  */
 function getDependentsOf(packageName) {
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getDependentsOf is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packages = getInstalledPackages()
     return _.reduce(packages, function(result, package) {
@@ -216,7 +216,7 @@ function getDependentsOf(packageName) {
  * @return {string|null} Returns the local path of a package, null if not found.
  */
 function getLocalPackagePath(packageName) {
-    var localPath = path.resolve(getAppDir(), 'packages', toLocalPackageName(packageName))
+    var localPath = path.resolve(getAppPath(), 'packages', toLocalPackageName(packageName))
     if (fs.existsSync(localPath)) return localPath
     else if (PACKAGE_DIRS) {
         localPath = path.resolve(PACKAGE_DIRS, toLocalPackageName(packageName))
@@ -241,7 +241,7 @@ function isLocalPackage(packageName) {
  * @return {string} The path to the isopack.
  */
 function getIsopackPath(packageName) {
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getIsopackPath is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var isopackPath
     if (isLocalPackage(packageName)) {
@@ -526,7 +526,7 @@ function getInfoFromIsopack(isopackPath) {
  * XXX: Handle wrapper numbers? f.e. 0.2.3_3 with the underscore
  */
 function getInstalledVersion(packageName) {
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getInstalledVersion is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     var packagesFile = path.resolve(app, '.meteor', 'versions')
     var lines = getLines(packagesFile)
@@ -586,7 +586,7 @@ function getPackageInfo(packageName, packageVersion) {
     // this first logic for the `packages/` directory, then first look in the
     // local `.meteor/local/isopacks/` before finally looking in
     // `~/.meteor/packages/`.
-    var app = getAppDir()
+    var app = getAppPath()
     if (app) packageDotJsPath = path.resolve(app, 'packages', packageLocalName, 'package.js')
     if (
         app && (fs.existsSync(packageDotJsPath) && !packageVersion) ||
@@ -651,7 +651,7 @@ function getPackageInfo(packageName, packageVersion) {
  * @return {string} The id.
  */
 function getAppId() {
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getAppId is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
     return fs.readFileSync(
         path.resolve(app, '.meteor', '.id')
@@ -745,7 +745,7 @@ _.assign(CompileManager.prototype, {
         // packages) have been handled.
         this.handledSourceCount += 1
         console.log('hello count:', this.handledSourceCount)
-        if (isAppBuild() && getAppDir() && isFirstRun &&
+        if (isAppBuild() && getAppPath() && isFirstRun &&
             this.handledSourceCount === numberOfFilesToHandle) {
 
             this.onAppHandlingComplete()
@@ -764,7 +764,7 @@ _.assign(CompileManager.prototype, {
         var output, webpackCompiler, batchDir,
             currentPackage
 
-        var app = getAppDir()
+        var app = getAppPath()
         if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
 
         function getModuleSourceAndPlatforms(extendedPackageInfo, fileName) {
@@ -839,7 +839,7 @@ _.assign(CompileManager.prototype, {
 
         // TODO: handle tmpLocation for different platforms. Perhaps just
         // do it in a hidden folder in the application.
-        let tmpLocation = path.sep+'tmp'
+        let tmpLocation = path.resolve(getAppPath())
 
         /*
          * Choose a temporary output location that doesn't exist yet.
@@ -921,7 +921,7 @@ _.assign(CompileManager.prototype, {
  * @return {Array} An array containing a list of all the modules (paths).
  */
 function getUnhandledSources() {
-    var app = getAppDir()
+    var app = getAppPath()
     if (!app) throw new Error('getUnhandledSources is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
         // TODO: ^ Make a single function for this check.
 
@@ -990,11 +990,11 @@ function escapeRegExp(str) {
 // entrypoint
 // TODO: use getIsopackPath() here instead of the repeated logic.
 ~function() {
-    if (isAppBuild() && getAppDir()) {
+    if (isAppBuild() && getAppPath()) {
         //console.log(' --- dependents:', getDependentsOf('rocket:module'))
         //process.exit()
 
-        var localIsopacksDir = path.resolve(getAppDir(), '.meteor', 'local', 'isopacks')
+        var localIsopacksDir = path.resolve(getAppPath(), '.meteor', 'local', 'isopacks')
         var dependents = getDependentsOf('rocket:module')
 
         // get only the local isopacks that are dependent on rocket:module
@@ -1039,7 +1039,7 @@ function escapeRegExp(str) {
             // then run our batch handler to compile all the modules of all the
             // packages in the app using the batch handler. We won't need to do all
             // this bookkeeping once Plugin.registerBatchHandler is released.
-            var app = getAppDir()
+            var app = getAppPath()
             // only check the app for module.js files if rocket:module is installed for the app.
             if (appUsesRocketModule()) {
                 var appModuleFiles = glob.sync(path.resolve(app, '**', '*module.js'))
@@ -1092,7 +1092,7 @@ function escapeRegExp(str) {
     compileManager.initSourceHandlers()
     console.log(' --- Added the source handlers! ')
 
-    if (isAppBuild() && getAppDir()) {
+    if (isAppBuild() && getAppPath()) {
         // Add this to the `process` so we can detect first runs vs re-builds after file
         // changes.
         if (!process.rocketModuleFirstRunComplete) {
