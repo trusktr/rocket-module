@@ -687,36 +687,6 @@ _.assign(CompileManager.prototype, {
     constructor: CompileManager,
 
     /**
-     * Get the default configuration.
-     *
-     * @param {CompileStep} compileStep A compileStep needed to get info for
-     * the current file.
-     * @param {string} outputFile The output file. TODO: The logic can be moved
-     * into here using the compileStep.
-     * @return {Object} Returns the default configuration used in the source
-     * handler. Currently it's a Webpack configuration object.
-     */
-    defaultConfig: function defaultConfig(compileStep, outputFile) {
-        return {
-            entry: compileStep.fullInputPath
-                .replace(/\.[A-Za-z]*$/, ''), // remove the extension
-            output: {
-                filename: outputFile
-            },
-            module: {
-                loaders: [
-                    { test: /\.css$/, loader: "style!css" }
-                    // TODO: get babel-loader working.
-                    //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
-                ]
-            },
-            resolveLoader: {
-                root: [this.rocketWebpackNodeModules]
-            }
-        }
-    },
-
-    /**
      * Sets up the source handlers for rocket:module's build plugin.
      */
     initSourceHandlers: function initSourceHandlers() {
@@ -845,23 +815,55 @@ _.assign(CompileManager.prototype, {
          * Choose a temporary output location that doesn't exist yet.
          */
         {
-            do batchDir = path.resolve(tmpLocation, 'meteor-'+getAppId(), 'batch-'+rndm(24))
+            do batchDir = path.resolve(tmpLocation, 'batch-'+rndm(24))
             while ( fs.existsSync(batchDir) )
         }
 
+        let webpackConfig = {
+            entry: {
+                // f.e.:
+                //'username_packagename/one/one': './packages/username_packagename/one/one',
+                //'username_packagename/two/two': './packages/username_packagename/two/two',
+            },
+            output: {
+                path: path.resolve(batchDir, './built'),
+                filename: '[name]',
+            },
+            plugins: [ new webpack.optimize.CommonsChunkPlugin("shared-modules.js") ],
+            resolve: {
+                fallback: [
+                    // f.e.:
+                    //path.resolve('./node_modules/username_packagename/one/node_modules'),
+                    //path.resolve('./node_modules/username_packagename/two/node_modules')
+                ]
+            },
+            module: {
+                loaders: [
+                    { test: /\.css$/, loader: "style!css" }
+                    // TODO: get babel-loader working.
+                    //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
+                ]
+            }
+        }
+
         /*
-         * Write the module sources to the batchDir.
+         * Write the module sources to the batchDir and list them in webpackConfig's entry option.
          */
         _.each(moduleFiles, (fileInfo) => {
-            let packagePath = path.resolve(batchDir, 'packages', fileInfo.package)
-            let filePath = path.resolve(packagePath, getPath(fileInfo.name))
-            mkdirp.sync(filePath)
+            let packageFile = path.join(toIsopackName(fileInfo.package), fileInfo.name)
+            let fullFilePath = path.resolve(batchDir, 'packages', packageFile)
+
+            mkdirp.sync(getPath(fullFilePath))
+
             try {
-                fs.writeFileSync(path.resolve(packagePath, fileInfo.name), fileInfo.source)
+                fs.writeFileSync(fullFilePath, fileInfo.source)
             }
             catch(e) {
-                throw new Error(' --- Error writing module file: ', path.resolve(packagePath, fileInfo.name))
+                throw new Error(' --- Error writing module file: ', fullFilePath)
             }
+
+            // relative to the batchDir, where webpack will be running from:
+            webpackConfig.entry[packageFile] = '.' +path.sep+ 'packages' +path.sep+ packageFile
         })
         process.exit()
 

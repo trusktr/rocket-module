@@ -84,7 +84,7 @@ apply until version 1.0.0.*
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
-  - [ ] List all the files from the previous step in the webpack
+  - [x] List all the files from the previous step in the webpack
         config's entry option as an object of file names. The keys are the
         filename including the package name but without the .js extension. For
         example: 'username:packagename/path/to/file'.
