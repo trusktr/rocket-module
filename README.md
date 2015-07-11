@@ -75,7 +75,7 @@ apply until version 1.0.0.*
       files in all package (local or not) of the application. In the future this
       batchHandler will be replaced by Meteor's Plugin.registerBatchHandler or
       Plugin.registerCompiler, whenever that gets introduced.)
-  - [ ] In the batch handler, choose a temporary location to handle the output
+  - [x] In the batch handler, choose a temporary location to handle the output
         of all the entry points all at once (on a per-batch basis instead of on a
         per-file basis). Put the temporary location into .meteor of the current
         application to be compatible with Windows since Windows doesn't have a /tmp.

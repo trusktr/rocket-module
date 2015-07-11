@@ -839,7 +839,7 @@ _.assign(CompileManager.prototype, {
 
         // TODO: handle tmpLocation for different platforms. Perhaps just
         // do it in a hidden folder in the application.
-        let tmpLocation = path.resolve(getAppPath())
+        let tmpLocation = path.resolve(getAppPath(), '.meteor', '.rocket-module')
 
         /*
          * Choose a temporary output location that doesn't exist yet.
