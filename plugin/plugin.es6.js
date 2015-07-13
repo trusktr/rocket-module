@@ -58,28 +58,6 @@ function packagesDir() {
 }
 
 /**
- * This is how to get to the packages folder of an app from the
- * node_modules folder of a locally installed package.
- *
- * The reason I'm using this is because Npm.require looks relative to
- * .npm/plugin/node_modules or .npm/package/node_modules inside a package, so
- * we have to provide the backsteps to get to the package directory in order to
- * `Npm.require` devs' codes relative to their packages since the normal
- * `require` isn't available.
- *
- * @return {string} The relative path back to `packages/`.
- *
- * TODO: How do we get to the packages directory of an app if we're not in a
- * local package node_modules folder? It might depend on the 'official' way of
- * getting the app path if it exists.
- *
- * XXX: This will be removed when we make the custom handling of npm modules.
- */
-function packagesDirRelativeToNodeModules() {
-    return '../../../../..'
-}
-
-/**
  * Returns the path of the package in the given CompileStep.
  *
  * @param {CompileStep} compileStep The given CompileStep.
@@ -781,8 +759,7 @@ _.assign(CompileManager.prototype, {
      * This will morph into the new batch handler...
      */
     batchHandler: function batchHandler() {
-        var output, webpackCompiler, batchDir,
-            currentPackage
+        var batchDir
 
         var app = getAppPath()
         if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
@@ -946,7 +923,6 @@ _.assign(CompileManager.prototype, {
             // install all the packages and their npm dependencies in the batchDir.
             let oldCwd = process.cwd()
             process.chdir(batchDir)
-            console.log(process.cwd())
             Meteor.wrapAsync(function(callback) {
                 npm.load({}, callback)
             })()
@@ -964,52 +940,28 @@ _.assign(CompileManager.prototype, {
                     webpackConfig.resolve.fallback.push(nodeModulesPath)
             })
         }
-        console.log('config', webpackConfig)
+
+        /*
+         * Run the Webpack compiler synchronously.
+         */
+        {
+            let oldCwd = process.cwd()
+            process.chdir(batchDir)
+
+            let webpackCompiler = webpack(webpackConfig)
+            let webpackResult = Meteor.wrapAsync(function(callback) {
+                webpackCompiler.run(function(error, stats) {
+                    if (error) throw new Error(error)
+                    else
+                        console.log(' ----------------------------------- STATS', stats)
+
+                    callback(error, stats)
+                })
+            })()
+
+            process.chdir(oldCwd)
+        }
         process.exit()
-
-        /*
-         * Link the node_modules directory so modules can be resolved.
-         */
-        {
-            currentPackage = packageDir(compileStep)
-            let modulesLink = path.resolve(currentPackage, 'node_modules')
-            let modulesSource = path.resolve(currentPackage, '.npm/package/node_modules')
-            if (fs.existsSync(modulesLink)) fs.unlinkSync(modulesLink)
-            fs.symlinkSync(modulesSource, modulesLink)
-        }
-
-        /*
-         * Extend the default Webpack configuration with the user's
-         * configuration and get a Webpack compiler. Npm.require loads modules
-         * relative to packages/<package-name>/.npm/plugin/<plugin-name>/node_modules
-         * so we need to go back 5 dirs into the packagesDir then go into the
-         * target packageDir.
-         *
-         * TODO: Move the Npm.require here to the top of the file, for ES6
-         * Module compatibility.
-         */
-        {
-            //output = path.resolve(output, compileStep.pathForSourceMap)
-            let pathToConfig = path.join(packagesDirRelativeToNodeModules(),
-                getFileName(currentPackage), 'webpack.config.js')
-            let config = fs.existsSync(path.resolve(currentPackage, 'module.config.js')) ?
-                Npm.require(pathToConfig) : {}
-            config = _.merge(this.defaultConfig(compileStep, output), config)
-            webpackCompiler = webpack(config)
-        }
-
-        /*
-         * Run the Webpack compiler synchronously and give the result back to Meteor.
-         */
-        {
-            let webpackResult = Meteor.wrapAsync(webpackCompiler.run, webpackCompiler)()
-            compileStep.addJavaScript({
-                path: compileStep.inputPath,
-                data: fs.readFileSync(output).toString(),
-                sourcePath: compileStep.inputPath,
-                bare: true
-            })
-        }
     }
 })
 

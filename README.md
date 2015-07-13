@@ -101,7 +101,7 @@ apply until version 1.0.0.*
   - [x] List all the node_modules folders of each package that was installed
         into node_modules of the batchDir as places to look for dependencies in
         webpack config's resolve.fallback option.
-  - [ ] Specify output.filename as '[name]' and output.path as './built',
+  - [x] Specify output.filename as '[name]' and output.path as './built',
         add the CommonsChunkPlugin and specify the common chunk name as
         'shared-modules.js', change dir to the parent-of-packages-folder, then run webpack!
         We've successfully code-splitted shared dependencies of all packages! woooo!
