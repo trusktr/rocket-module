@@ -110,15 +110,10 @@ apply until version 1.0.0.*
         on a per architecture basis, and we also need to update each arch json file to
         contain the result file's byte lengths. At this point, the modified isopacks
         should run in the application!
-    - [ ] Write the shared-modules.js file into the first isopack that gets loaded
-          before other isopacks. How do we determine which one this is? Does
-          Meteor's build system fire the source handler in order of lowest dependency
-          first? If so, we can detect which module file was handled first and write the
-          shared file right before that entry point. If that doesn't work, perhaps we
-          can add a dummy file to rocket:module that gets handled by it's own source
-          handler, and since all packages are depending on rocket:module, we can write
-          the shared-modules.js file to that location of rocket:module's isopack and therefore
-          it will load before all the other entry points.
+    - [ ] Add a dummy file to rocket:module that gets handled by it's own (second)
+          source handler, and since all packages are depending on rocket:module, we
+          can write the shared-modules.js file to that location of rocket:module's
+          isopack and therefore it will load before all the other entry points.
 
 ### v1.0.0
 - [ ] Move utility functions to a new package.
