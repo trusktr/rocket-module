@@ -949,7 +949,17 @@ _.assign(CompileManager.prototype, {
                 npm.commands.install([], callback)
             })()
             process.chdir(oldCwd)
+
+            // list each node_modules folder (that was installed in the previous
+            // step) in webpackConfig.
+            _.each(dependents, function(dependent) {
+                let isopackName = toIsopackName(dependent.name)
+                let nodeModulesPath = path.resolve(batchDir, 'node_modules', isopackName, 'node_modules')
+                if (fs.existsSync(nodeModulesPath))
+                    webpackConfig.resolve.fallback.push(nodeModulesPath)
+            })
         }
+        console.log('config', webpackConfig)
         process.exit()
 
         /*
