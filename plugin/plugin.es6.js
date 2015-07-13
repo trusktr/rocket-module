@@ -881,6 +881,9 @@ _.assign(CompileManager.prototype, {
                 // write package.json for the current package, containing npm
                 // deps, package isopack name, and version 0.0.0 (version is
                 // required by npm).
+                _.each(dependent.npmDependencies, function(version, name) {
+                    dependent.npmDependencies[name] = '^'+version
+                })
                 fs.writeFileSync(path.resolve(packagePath, 'package.json'), `{
                     "name": "${isopackName}",
                     "version": "0.0.0",
