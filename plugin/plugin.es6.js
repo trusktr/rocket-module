@@ -838,11 +838,7 @@ _.assign(CompileManager.prototype, {
         /*
          * Choose a temporary output location that doesn't exist yet.
          */
-        let tmpLocation = path.resolve(getAppPath(), '.meteor', '.rocket-module')
-        {
-            do batchDir = path.resolve(tmpLocation, 'batch-'+rndm(24))
-            while ( fs.existsSync(batchDir) )
-        }
+        batchDir = path.resolve(getAppPath(), '.meteor', 'local', 'rocket-module')
 
         // define the initial webpack configuration object.
         let webpackConfig = {
@@ -872,46 +868,66 @@ _.assign(CompileManager.prototype, {
             }
         }
 
-        let moduleFiles = []
+        // dependents is an array of PackageInfo
+        let dependents = getDependentsOf('rocket:module')
         {
-            // dependents is an array of PackageInfo
-            let dependents = getDependentsOf('rocket:module')
 
-            // Add the sources of each file into the PackageInfo
-            // XXX Do this in getPackageInfo instead?
             _.each(dependents, function(dependent) {
+                let isopackName = toIsopackName(dependent.name)
+                let packagePath = path.resolve(batchDir, 'packages', isopackName)
+
+                mkdirp.sync(packagePath)
+
+                // write package.json for the current package, containing npm
+                // deps, package isopack name, and version 0.0.0 (version is
+                // required by npm).
+                fs.writeFileSync(path.resolve(packagePath, 'package.json'), (`
+                    {
+                        "name": "${isopackName}",
+                        "version": "0.0.0",
+                        "dependencies": ${
+                            JSON.stringify(dependent.npmDependencies)
+                        }
+                    }
+                `))
+
                 _.each(dependent.files, function(file, i, files) {
+
+                    /*
+                     * Add the sources of each file into the PackageInfo.
+                     * XXX Do this in getPackageInfo instead?
+                     */
                     files[i] = _.extend({
-                        package: dependent.name,
                         name: file
                     }, getModuleSourceAndPlatforms(dependent, file))
 
-                    if (files[i].name.match(/module\.js$/)) {
-                        moduleFiles.push(files[i])
+                    file = files[i]
+
+                    if (file.name.match(/module\.js$/)) {
+
+                        /*
+                         * Write the module source to the batchDir and list it
+                         * in webpackConfig's entry option.
+                         */
+                        let isopackFile = path.join(isopackName, file.name)
+                        let filePath = path.resolve(packagePath, file.name)
+
+                        mkdirp.sync(getPath(filePath))
+
+                        try {
+                            fs.writeFileSync(filePath, file.source)
+                        }
+                        catch(e) {
+                            throw new Error(' --- Error writing module file: ', filePath)
+                        }
+
+                        // the following path is relative to the batchDir,
+                        // where webpack will be running from:
+                        webpackConfig.entry[isopackFile] = '.' +path.sep+ 'packages' +path.sep+ isopackFile
                     }
                 })
             })
         }
-
-        /*
-         * Write the module sources to the batchDir and list them in webpackConfig's entry option.
-         */
-        _.each(moduleFiles, (fileInfo) => {
-            let packageFile = path.join(toIsopackName(fileInfo.package), fileInfo.name)
-            let fullFilePath = path.resolve(batchDir, 'packages', packageFile)
-
-            mkdirp.sync(getPath(fullFilePath))
-
-            try {
-                fs.writeFileSync(fullFilePath, fileInfo.source)
-            }
-            catch(e) {
-                throw new Error(' --- Error writing module file: ', fullFilePath)
-            }
-
-            // relative to the batchDir, where webpack will be running from:
-            webpackConfig.entry[packageFile] = '.' +path.sep+ 'packages' +path.sep+ packageFile
-        })
         process.exit()
 
         /*

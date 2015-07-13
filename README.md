@@ -89,10 +89,10 @@ apply until version 1.0.0.*
         package name. For example: 'username_packagename/path/to/file.js'.
   - [x] Get the npm dependencies of each pacakge (add this to the result of
         getPackageInfo)
-  - [ ] For each package, write the npm dependencies (of the previous step,
+  - [x] For each package, write the npm dependencies (of the previous step,
         during app build), retrieved from a package's isopack, to package.json in
         the respective temporary location for the given package. Also put the isopack
-        name and version 0.0.0 in the package.json.
+        name in the name field and 0.0.0 in the versions field of the package.json.
   - [ ] Write a package.json file in the parent folder of the packages folder
         containing all the packages (of the temporary location). In it list each
         package as a dependency using the 'file:...' notation, using the isopack name
