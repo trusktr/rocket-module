@@ -808,7 +808,9 @@ _.assign(CompileManager.prototype, {
 
                     if (compiledFileSource.match(FILENAME_REGEX)) {
 
-                        // We take advantage of the fact that sources are currently separate by 7 lucky new lines in isopack files.
+                        // We take advantage of the fact that sources are
+                        // currently separated by 7 lucky new lines in isopack
+                        // files.
                         let enclosedSources = compiledFileSource.split('\n\n\n\n\n\n\n')
 
                         for ( let j = 0, len = enclosedSources.length; j<len; j+=1) {
@@ -818,8 +820,8 @@ _.assign(CompileManager.prototype, {
                                 .match(r`/${fileName}/g`)) {
 
                                 if (!source)
-                                    source = enclosedSources[j].replace(r`^${closureBeginRegex}`, '')
-                                        .replace(r`${closureEndRegex}$`, '')
+                                    source = enclosedSources[j].replace(r`^\s*${closureBeginRegex}`, '')
+                                        .replace(r`${closureEndRegex}\s*$`, '')
 
                                 platforms.push(PLATFORM_NAMES[i])
                                 break // we've found the source file we're looking for
