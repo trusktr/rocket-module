@@ -18,6 +18,7 @@ var fse           = Npm.require('fs-extra')
 var async         = Npm.require('async')
 var regexr        = Npm.require('regexr')
 var mkdirp        = Npm.require('mkdirp')
+var npm           = Npm.require('npm')
 
 // Meteor package imports
 var webpack        = Package['rocket:webpack'].Webpack
@@ -936,6 +937,18 @@ _.assign(CompileManager.prototype, {
                     }
                 })
             })
+
+            // install all the packages and their npm dependencies in the batchDir.
+            let oldCwd = process.cwd()
+            process.chdir(batchDir)
+            console.log(process.cwd())
+            Meteor.wrapAsync(function(callback) {
+                npm.load({}, callback)
+            })()
+            Meteor.wrapAsync(function(callback) {
+                npm.commands.install([], callback)
+            })()
+            process.chdir(oldCwd)
         }
         process.exit()
 

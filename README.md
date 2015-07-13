@@ -97,7 +97,7 @@ apply until version 1.0.0.*
         containing all the packages (of the temporary location). In it list each
         package as a dependency using the 'file:...' notation, using the isopack name
         of each package for the package names.
-  - [ ] Run `npm install` in the parent folder of the packages folder.
+  - [x] Run `npm install` in the parent folder of the packages folder.
   - [ ] List all the node_modules folders of each package that was installed
         into node_modules of the parent-of-packages-folder as places to look for
         dependencies in webpack config's resolve.fallback option.
