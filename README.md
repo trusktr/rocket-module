@@ -101,9 +101,9 @@ apply until version 1.0.0.*
   - [x] List all the node_modules folders of each package that was installed
         into node_modules of the batchDir as places to look for dependencies in
         webpack config's resolve.fallback option.
-  - [ ] Specify output.filename as '[name].js' and output.path as './built',
+  - [ ] Specify output.filename as '[name]' and output.path as './built',
         add the CommonsChunkPlugin and specify the common chunk name as
-        'shared.js', change dir to the parent-of-packages-folder, then run webpack!
+        'shared-modules.js', change dir to the parent-of-packages-folder, then run webpack!
         We've successfully code-splitted shared dependencies of all packages! woooo!
   - [ ] Now loop through all the output files and write each one back to their
         original locations in the isopacks. We need to make sure to handle each one
@@ -130,6 +130,7 @@ apply until version 1.0.0.*
 - [ ] Celebrate! Wooooo!
 
 ### v1.x.x
+- [ ] Output errors encountered by Webpack when compiling entry points.
 - [ ] Support npm dependencies for apps that already use meteorhacks:npm.
  - [ ] Simply detect meteorhacks:npm alongside dependents of rocket:module and
        install those dependencies.
