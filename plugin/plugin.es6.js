@@ -11,7 +11,6 @@ var path          = Npm.require('path')
 var fs            = Npm.require('fs')
 
 // npm modules
-var rndm          = Npm.require('rndm')
 var _             = Npm.require('lodash')
 var glob          = Npm.require('glob')
 var USER_HOME     = Npm.require('user-home')
@@ -881,15 +880,25 @@ _.assign(CompileManager.prototype, {
                 // write package.json for the current package, containing npm
                 // deps, package isopack name, and version 0.0.0 (version is
                 // required by npm).
-                fs.writeFileSync(path.resolve(packagePath, 'package.json'), (`
-                    {
-                        "name": "${isopackName}",
-                        "version": "0.0.0",
-                        "dependencies": ${
-                            JSON.stringify(dependent.npmDependencies)
-                        }
+                fs.writeFileSync(path.resolve(packagePath, 'package.json'), `{
+                    "name": "${isopackName}",
+                    "version": "0.0.0",
+                    "dependencies": ${
+                        JSON.stringify(dependent.npmDependencies)
                     }
-                `))
+                }`)
+
+                // make package.json in the batchDir and specify each dependent
+                // as a dependency.
+                let mainPackageDotJson = path.resolve(batchDir, 'package.json')
+                if (!fs.existsSync(mainPackageDotJson)) {
+                    fs.writeFileSync(mainPackageDotJson, `{
+                        "dependencies": {}
+                    }`)
+                }
+                let json = JSON.parse(fs.readFileSync(mainPackageDotJson).toString())
+                json.dependencies[isopackName] = `file:./packages/${isopackName}`
+                fs.writeFileSync(mainPackageDotJson, JSON.stringify(json))
 
                 _.each(dependent.files, function(file, i, files) {
 

@@ -93,7 +93,7 @@ apply until version 1.0.0.*
         during app build), retrieved from a package's isopack, to package.json in
         the respective temporary location for the given package. Also put the isopack
         name in the name field and 0.0.0 in the versions field of the package.json.
-  - [ ] Write a package.json file in the parent folder of the packages folder
+  - [x] Write a package.json file in the parent folder of the packages folder
         containing all the packages (of the temporary location). In it list each
         package as a dependency using the 'file:...' notation, using the isopack name
         of each package for the package names.
