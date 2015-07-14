@@ -124,11 +124,9 @@ apply until version 1.0.0.*
         local package (basically like what meteorhacks:npm does).
 - [ ] Celebrate! Wooooo!
 
-### v1.x.x
+### v1.x.x (in order of importance)
+- [ ] Handle web.cordova builds on the app-side.
 - [ ] Output errors encountered by Webpack when compiling entry points.
-- [ ] Support npm dependencies for apps that already use meteorhacks:npm.
- - [ ] Simply detect meteorhacks:npm alongside dependents of rocket:module and
-       install those dependencies.
 - [ ] Detect and deal with certain conditions.
   - [ ] When recompiling a local package during an app-rebuild (meteor is already
         running, not its first run), detect if the package's dependencies have
@@ -137,4 +135,9 @@ apply until version 1.0.0.*
   - [ ] What happens if an app doesn't depend on rocket:module and has only
         non-local packages depending on rocket:module? Will rocket:module's build
         plugin run during app build? If not, how will we get it to run?
+- [ ] Support npm dependencies for apps that already use meteorhacks:npm.
+ - [ ] Simply detect meteorhacks:npm alongside dependents of rocket:module and
+       install those dependencies.
 - [ ] Test in Windows.
+- [ ] Code split for each architecture instead of all at once (each
+      architecture may possibly have different shared modules).
