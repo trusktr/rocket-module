@@ -33,11 +33,13 @@ var isFirstRun            = !process.rocketModuleFirstRunComplete
 var PACKAGE_DIRS          = _.get(process, 'env.PACKAGE_DIRS')
 var SHARED_MODULES_PLACEHOLDER = '/*_____rocket_module_____:shared-modules*/'
 var NOT_COMPILED_PLACEHOLDER = "/*_____rocket_module_____:not-compiled*/ throw new Error('Rocket:module needs to be installed in your app for some code to work: meteor add rocket:module')"
+
+// A regex for finding the names of files inside the built files of isopacks.
 var FILENAME_REGEX        = regexr`/\/+\n\/\/ +\/\/\n\/\/ (packages\/(?:\S+:)?\S+\/\S+).+((?:\n\/\/ (?:\S+).+)*)\n\/\/ +\/\/\n\/+\n +\/\//g`
-                                                       // └───────────────────────────┘  └─────────────────────┘
-                                                       //              ▴                            ▴
-                                                       //              |                            └── File info, if any. capture group #2
-                                                       //              └── File name. capture group #1
+                                                             // └───────────────────────────┘  └────────────────────────┘
+                                                             //              ▴                              ▴
+                                                             //              |                              └── File info, if any. capture group #2
+                                                             //              └── File name. capture group #1
 
 /**
  * Get the current app's path.
@@ -764,6 +766,7 @@ _.assign(CompileManager.prototype, {
      */
     batchHandler: function batchHandler() {
         var batchDir
+        var r = regexr
 
         var app = getAppPath()
         if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
@@ -982,7 +985,7 @@ _.assign(CompileManager.prototype, {
         // if not windows
         // TODO: windows
         if (!os.platform().match(/^win/)) {
-            // make isopack files writable.
+            // make rocket:module's isopack files writable.
             shell.exec(['chmod', '-R', 'u+w', rocketModulePath].join(' '))
         }
 
@@ -994,7 +997,6 @@ _.assign(CompileManager.prototype, {
 
             // TODO: handle cordova builds which aren't present on the app-side.
             if (fs.existsSync(platformBuildFile)) {
-                let r = regexr
                 let placeholderRegex = r`${escapeRegExp(SHARED_MODULES_PLACEHOLDER)}`
                 let isopackSource = fs.readFileSync(platformBuildFile).toString()
                 let sharedModulesSource = fs.readFileSync(path.resolve(batchDir, 'built', 'shared-modules.js')).toString()
@@ -1014,6 +1016,74 @@ _.assign(CompileManager.prototype, {
                 fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
             }
         })
+
+        // write each compiled files back into it's place in each of the
+        // platform files of the isopack from where it came.
+        _.each(dependents, (dependent) => {
+            let isopackName = toIsopackName(dependent.name)
+            let builtPath = path.resolve(batchDir, 'built', isopackName)
+            let isopackPath = dependent.isopackPath
+
+            // if not windows
+            // TODO: windows
+            if (!os.platform().match(/^win/)) {
+                // make the dependent's isopack files writable.
+                shell.exec(['chmod', '-R', 'u+w', isopackPath].join(' '))
+            }
+
+            // For each file of the current dependent, write the file back to
+            // the dependent's isopack.
+            dependent.files = _.filter(dependent.files, (file)=>{
+                return file.name.match(/module\.js$/)
+            })
+            _.each(dependent.files, (file)=>{
+                let compiledSource = fs.readFileSync(
+                    path.resolve(builtPath, file.name)
+                ).toString()
+                console.log('\n----- package file:', path.resolve(builtPath, file.name))
+
+                // for each of the file's platforms
+                _.each(file.platforms, (platform)=>{
+                    // get the isopack for each platform
+                    let platformPath = path.resolve(isopackPath, platform)
+                    let isopackSourceFile = path.resolve(platformPath, 'packages', isopackName+'.js')
+                    let isopackSource = fs.readFileSync(isopackSourceFile).toString()
+
+                    // split it by 7 new lines and put the source where it should go.
+                    let enclosedSources = isopackSource.split('\n\n\n\n\n\n\n')
+                    let index = _.findIndex(enclosedSources, (source)=>{
+                        console.log('----- source looking for:\n', dependent.name+'/'+file.name, platform)
+                        console.log('----- file looking in:\n', isopackSourceFile)
+
+                        // will be null if the current source was is already a
+                        // compiled-by-webpack source inserted in a previous
+                        // iteration of the current _.each loop.
+                        let meteorFilenameSection = source.match(FILENAME_REGEX)
+
+                        if (meteorFilenameSection)
+                            return meteorFilenameSection[0].match(r`/${file.name}/g`)
+                    })
+                    //console.log('--- index;', index)
+                    enclosedSources[index] = compiledSource
+
+                    //join by 7 new lines and write the file
+                    isopackSource = enclosedSources.join('\n\n\n\n\n\n\n')
+                    fs.writeFileSync(isopackSourceFile, isopackSource)
+
+                    //update the platform json file with file length.
+                    let platformJsonFile = platformPath + '.json'
+                    let platformJson = JSON.parse(fs.readFileSync(platformJsonFile).toString())
+                    let indexOfResource = _.findIndex(platformJson.resources, function(resource) {
+                        return resource.file.match(r`${
+                            escapeRegExp(path.join(platform, 'packages', isopackName+'.js'))
+                        }`)
+                    })
+                    platformJson.resources[indexOfResource].length = isopackSource.length
+                    fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
+                })
+            })
+        })
+        console.log('--- done?!!!')
         process.exit()
     }
 })

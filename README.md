@@ -105,14 +105,17 @@ apply until version 1.0.0.*
         add the CommonsChunkPlugin and specify the common chunk name as
         'shared-modules.js', change dir to the parent-of-packages-folder, then run webpack!
         We've successfully code-splitted shared dependencies of all packages! woooo!
+    - [ ] Figure out what to do with the fact that Webpack by default compiles
+          for the web target, and relies on the `window` object which isn't
+          available on the server-side.
   - [x] Write the shared-modules.js file to the corresponding place in
         rocket:module's isopack.
-  - [ ] Now loop through all the output files and write each one back to their
+  - [x] Now loop through all the output files and write each one back to their
         original locations in the isopacks. We need to make sure to handle each one
         on a per architecture basis, and we also need to update each arch json file to
         contain the result file's byte lengths. At this point, the modified isopacks
         should run in the application!
-    - [ ] Add a dummy file to rocket:module that gets handled by it's own (second)
+    - [x] Add a dummy file to rocket:module that gets handled by it's own (second)
           source handler, and since all packages are depending on rocket:module, we
           can write the shared-modules.js file to that location of rocket:module's
           isopack and therefore it will load before all the other entry points.
