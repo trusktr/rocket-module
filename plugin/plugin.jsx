@@ -1095,7 +1095,7 @@ _.assign(CompileManager.prototype, {
 
         // create (if it doesn't exist) a dummy file in the app that we can append a comment to in order to trigger an app re-build.
         setTimeout(()=>{
-            let dummyFile = path.resolve(getAppPath(), 'rocket-module.js')
+            let dummyFile = path.resolve(getAppPath(), 'rocket-dummy.js')
             if (!fs.existsSync(dummyFile))
                 fs.writeFileSync(dummyFile, (`
                     /*
@@ -1111,7 +1111,7 @@ _.assign(CompileManager.prototype, {
             fs.writeFileSync(dummyFile,
                 fs.readFileSync(dummyFile).toString() + '\n//'
             )
-        }, 5000)
+        }, 1000)
 
         //process.exit()
     }

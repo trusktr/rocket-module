@@ -17,9 +17,9 @@ Package.registerBuildPlugin({
         'sanjo:meteor-files-helpers@1.1.0_6',
         'rocket:webpack@1.9.10',
         'package-version-parser@3.0.3',
-        'grigio:babel@0.1.4'
+        'jsx@0.1.2'
     ],
-    sources: ['plugin/plugin.es6.js'],
+    sources: ['plugin/plugin.jsx'],
     npmDependencies: {
         'lodash': '3.8.0',
         'glob': '5.0.5',
