@@ -84,6 +84,11 @@ apply until version 1.0.0.*
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
+    - [ ] Get the original sources from the Package Server API so that we can
+          place all the files that weren't added with `api.addFiles` into the
+          temporary location, because those files might be `require`ed/`import`ed by the
+          entry point files, and those files aren't packaged when publishing to
+          Atmosphere.
   - [x] List all the files from the previous step in the webpack config's entry
         option as an object of file names. The keys are the filename including the
         package name. For example: 'username_packagename/path/to/file.js'.
