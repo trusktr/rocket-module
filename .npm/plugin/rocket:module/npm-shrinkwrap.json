@@ -806,6 +806,9 @@
     "regexr": {
       "version": "1.1.1"
     },
+    "shelljs": {
+      "version": "0.5.1"
+    },
     "user-home": {
       "version": "1.1.1"
     }

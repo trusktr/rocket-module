@@ -28,8 +28,13 @@ Package.registerBuildPlugin({
         'async': '1.2.0',
         'regexr': '1.1.1',
         'mkdirp': '0.5.1',
-        'npm': '2.13.0'
+        'npm': '2.13.0',
+        'shelljs': '0.5.1'
     }
+})
+
+Package.onUse(function(api) {
+    api.addFiles('shared-modules.js')
 })
 
 Package.onTest(function(api) {

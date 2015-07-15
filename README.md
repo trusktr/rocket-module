@@ -105,6 +105,8 @@ apply until version 1.0.0.*
         add the CommonsChunkPlugin and specify the common chunk name as
         'shared-modules.js', change dir to the parent-of-packages-folder, then run webpack!
         We've successfully code-splitted shared dependencies of all packages! woooo!
+  - [x] Write the shared-modules.js file to the corresponding place in
+        rocket:module's isopack.
   - [ ] Now loop through all the output files and write each one back to their
         original locations in the isopacks. We need to make sure to handle each one
         on a per architecture basis, and we also need to update each arch json file to
@@ -139,5 +141,6 @@ apply until version 1.0.0.*
  - [ ] Simply detect meteorhacks:npm alongside dependents of rocket:module and
        install those dependencies.
 - [ ] Test in Windows.
+- [ ] Also make new source .map files for each isopack's output file.
 - [ ] Code split for each architecture instead of all at once (each
       architecture may possibly have different shared modules).
