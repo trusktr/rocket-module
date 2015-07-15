@@ -906,6 +906,19 @@ _.assign(CompileManager.prototype, {
                     file = files[i]
 
                     if (file.name.match(/module\.js$/)) {
+                        /*
+                         * Remove the "not-compiled" placeholder from the source.
+                         *
+                         * TODO v0.2.0: Apparently, once we've gotten to this
+                         * point, the source is already registered with Meteor,
+                         * so compile everything and put it into the isopacks,
+                         * the app will still run with the original
+                         * non-compiled sources, so we need to trigger a
+                         * restart somehow.
+                         */
+                        let source = file.source.replace(r`${
+                            escapeRegExp(NOT_COMPILED_PLACEHOLDER)
+                        }`, '//')
 
                         /*
                          * Write the module source to the batchDir and list it
@@ -915,16 +928,11 @@ _.assign(CompileManager.prototype, {
                         let filePath = path.resolve(packagePath, file.name)
 
                         mkdirp.sync(getPath(filePath))
-
-                        try {
-                            fs.writeFileSync(filePath, file.source)
-                        }
-                        catch(e) {
-                            throw new Error(' --- Error writing module file: ', filePath)
-                        }
+                        fs.writeFileSync(filePath, source)
 
                         // the following path is relative to the batchDir,
-                        // where webpack will be running from:
+                        // where webpack will be running from, so the period is
+                        // needed (path.join removes the period):
                         webpackConfig.entry[isopackFile] = '.' +path.sep+ 'packages' +path.sep+ isopackFile
                     }
                 })
@@ -1084,7 +1092,28 @@ _.assign(CompileManager.prototype, {
             })
         })
         console.log('--- done?!!!')
-        process.exit()
+
+        // create (if it doesn't exist) a dummy file in the app that we can append a comment to in order to trigger an app re-build.
+        setTimeout(()=>{
+            let dummyFile = path.resolve(getAppPath(), 'rocket-module.js')
+            if (!fs.existsSync(dummyFile))
+                fs.writeFileSync(dummyFile, (`
+                    /*
+                     * Silence is golden.
+                     *
+                     * Add this file to your .gitignore. The rocket:module
+                     * package uses this empty file to trigger a refresh of
+                     * your app when necessary.
+                     */
+                `))
+
+            // append an empty comment.
+            fs.writeFileSync(dummyFile,
+                fs.readFileSync(dummyFile).toString() + '\n//'
+            )
+        }, 5000)
+
+        //process.exit()
     }
 })
 
