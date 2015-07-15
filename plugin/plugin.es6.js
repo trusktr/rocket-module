@@ -1011,7 +1011,7 @@ _.assign(CompileManager.prototype, {
                     }`)
                 })
                 platformJson.resources[indexOfResource].length = isopackSource.length
-                fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson))
+                fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
             }
         })
         process.exit()
