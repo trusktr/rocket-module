@@ -1025,7 +1025,7 @@ _.assign(CompileManager.prototype, {
             }
         })
 
-        // write each compiled files back into it's place in each of the
+        // write each compiled file back into it's place in each of the
         // platform files of the isopack from where it came.
         _.each(dependents, (dependent) => {
             let isopackName = toIsopackName(dependent.name)
@@ -1093,24 +1093,26 @@ _.assign(CompileManager.prototype, {
         })
         console.log('--- done?!!!')
 
-        // create (if it doesn't exist) a dummy file in the app that we can append a comment to in order to trigger an app re-build.
+        /*
+         * Create (if it doesn't exist) a dummy file in the app that we can
+         * append a comment to in order to trigger an app re-build.
+         */
         setTimeout(()=>{
+            let r = regexr
+            let message = (`/* Silence is golden. Don't edit this file. */`)
             let dummyFile = path.resolve(getAppPath(), 'rocket-dummy.js')
-            if (!fs.existsSync(dummyFile))
-                fs.writeFileSync(dummyFile, (`
-                    /*
-                     * Silence is golden.
-                     *
-                     * Add this file to your .gitignore. The rocket:module
-                     * package uses this empty file to trigger a refresh of
-                     * your app when necessary.
-                     */
-                `))
-
-            // append an empty comment.
-            fs.writeFileSync(dummyFile,
-                fs.readFileSync(dummyFile).toString() + '\n//'
-            )
+            if (
+                !fs.existsSync(dummyFile)
+                || !fs.readFileSync(dummyFile).toString().match(r`/^${escapeRegExp(message)}$/g`)
+            ) {
+                fs.writeFileSync(dummyFile, message)
+            }
+            else {
+                // append an empty comment.
+                fs.writeFileSync(dummyFile,
+                    fs.readFileSync(dummyFile).toString() + '\n//'
+                )
+            }
         }, 1000)
 
         //process.exit()
