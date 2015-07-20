@@ -114,6 +114,10 @@ apply until version 1.0.0.*
     - [ ] Figure out what to do with the fact that Webpack by default compiles
           for the web target, and relies on the `window` object which isn't
           available on the server-side.
+      - [ ] For the 'os' platform, replace 'window' with 'RocketModule'.
+      - [ ] Make RocketModule an empty object in rocket:module's shared-modules.js file and export it in package.js.
+      - [ ] In the publish compile step, extend the 'this' of the entrypoint closures with RocketModule (exclude shared-modules.js)
+      - [ ] Assign this object to the 'global' variable in each entrypoint closure.
   - [x] Write the shared-modules.js file to the corresponding place in
         rocket:module's isopack.
   - [x] Now loop through all the output files and write each one back to their
