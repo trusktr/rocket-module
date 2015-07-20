@@ -84,7 +84,7 @@ apply until version 1.0.0.*
         (local or not).
   - [x] Write these sources to the temporary location in some structure that
         organizes the files by package.
-    - [ ] Remove the "not-compiled" placeholder from the files before writing them.
+    - [x] Remove the "not-compiled" placeholder from the files before writing them.
     - [ ] Get the original sources from the Package Server API and add all the
           files that weren't added with `api.addFiles`, because those files might
           be `require`ed/`import`ed by entry point files, and those files aren't packaged

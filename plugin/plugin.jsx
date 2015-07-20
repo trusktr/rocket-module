@@ -32,7 +32,6 @@ var isFirstRun            = !process.rocketModuleFirstRunComplete
 // The regex to capture file names in built isopack files.
 var PACKAGE_DIRS          = _.get(process, 'env.PACKAGE_DIRS')
 var SHARED_MODULES_PLACEHOLDER = '/*_____rocket_module_____:shared-modules*/'
-var NOT_COMPILED_PLACEHOLDER = "/*_____rocket_module_____:not-compiled*/ throw new Error('Rocket:module needs to be installed in your app for some code to work: meteor add rocket:module')"
 
 // A regex for finding the names of files inside the built files of isopacks.
 var FILENAME_REGEX        = regexr`/\/+\n\/\/ +\/\/\n\/\/ (packages\/(?:\S+:)?\S+\/\S+).+((?:\n\/\/ (?:\S+).+)*)\n\/\/ +\/\/\n\/+\n +\/\//g`
@@ -739,7 +738,7 @@ _.assign(CompileManager.prototype, {
         console.log(' --- Executing source handler on file: ', compileStep.fullInputPath, '\n')
         compileStep.addJavaScript({
             path: compileStep.inputPath,
-            data: NOT_COMPILED_PLACEHOLDER+"\n"+compileStep.read().toString(),
+            data: compileStep.read().toString(),
             sourcePath: compileStep.inputPath,
             bare: false
         })
@@ -906,20 +905,6 @@ _.assign(CompileManager.prototype, {
                     file = files[i]
 
                     if (file.name.match(/module\.js$/)) {
-                        /*
-                         * Remove the "not-compiled" placeholder from the source.
-                         *
-                         * TODO v0.2.0: Apparently, once we've gotten to this
-                         * point, the source is already registered with Meteor,
-                         * so compile everything and put it into the isopacks,
-                         * the app will still run with the original
-                         * non-compiled sources, so we need to trigger a
-                         * restart somehow.
-                         */
-                        let source = file.source.replace(r`${
-                            escapeRegExp(NOT_COMPILED_PLACEHOLDER)
-                        }`, '//')
-
                         /*
                          * Write the module source to the batchDir and list it
                          * in webpackConfig's entry option.
