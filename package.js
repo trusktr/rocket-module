@@ -35,6 +35,7 @@ Package.registerBuildPlugin({
 
 Package.onUse(function(api) {
     api.addFiles('shared-modules.js')
+    api.export('RocketModule')
 })
 
 Package.onTest(function(api) {

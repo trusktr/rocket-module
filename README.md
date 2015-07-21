@@ -89,7 +89,8 @@ apply until version 1.0.0.*
           files that weren't added with `api.addFiles`, because those files might
           be `require`ed/`import`ed by entry point files, and those files aren't packaged
           when publishing to Atmosphere, otherwise entry points will fail to find the
-          files.
+          files. An alternative to the Package Server API (which relies on networking)
+          might be to package all the local files of a package into the publish build.
   - [x] List all the files from the previous step in the webpack config's entry
         option as an object of file names. The keys are the filename including the
         package name. For example: 'username_packagename/path/to/file.js'.
@@ -111,13 +112,14 @@ apply until version 1.0.0.*
         add the CommonsChunkPlugin and specify the common chunk name as
         'shared-modules.js', change dir to the parent-of-packages-folder, then run webpack!
         We've successfully code-splitted shared dependencies of all packages! woooo!
-    - [ ] Figure out what to do with the fact that Webpack by default compiles
+    - [x] Figure out what to do with the fact that Webpack by default compiles
           for the web target, and relies on the `window` object which isn't
           available on the server-side.
-      - [ ] For the 'os' platform, replace 'window' with 'RocketModule'.
-      - [ ] Make RocketModule an empty object in rocket:module's shared-modules.js file and export it in package.js.
-      - [ ] In the publish compile step, extend the 'this' of the entrypoint closures with RocketModule (exclude shared-modules.js)
-      - [ ] Assign this object to the 'global' variable in each entrypoint closure.
+      - [x] For the 'os' platform, replace 'window' with 'RocketModule'.
+      - [x] Make RocketModule an empty object in rocket:module's
+            shared-modules.js file and export it in package.js.
+      - [x] In the publish compile step, extend the 'this' of the entrypoint
+            closures with RocketModule (exclude shared-modules.js)
   - [x] Write the shared-modules.js file to the corresponding place in
         rocket:module's isopack.
   - [x] Now loop through all the output files and write each one back to their

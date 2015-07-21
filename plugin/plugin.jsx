@@ -68,7 +68,7 @@ function packagesDir() {
  * @param {CompileStep} compileStep The given CompileStep.
  * @return {string} The path to the package.
  */
-function packageDir(compileStep) {
+function packageDirFromCompileStep(compileStep) {
     return path.resolve(compileStep.fullInputPath.replace(compileStep.inputPath, ''))
 }
 
@@ -853,10 +853,12 @@ _.assign(CompileManager.prototype, {
             }
         }
 
-        // Write the sources and package.json files to the batchDir to be
-        // handled by Webpack.
-        //
-        // dependents is an array of PackageInfo
+        /*
+         * Write the sources and package.json files to the batchDir to be
+         * handled by Webpack.
+         *
+         * dependents is an array of PackageInfo
+         */
         let dependents = getDependentsOf('rocket:module')
         {
 
@@ -905,10 +907,10 @@ _.assign(CompileManager.prototype, {
                     file = files[i]
 
                     if (file.name.match(/module\.js$/)) {
-                        /*
-                         * Write the module source to the batchDir and list it
-                         * in webpackConfig's entry option.
-                         */
+                        let source = file.source
+
+                        // Write the module source to the batchDir and list it
+                        // in webpackConfig's entry option.
                         let isopackFile = path.join(isopackName, file.name)
                         let filePath = path.resolve(packagePath, file.name)
 
@@ -993,10 +995,14 @@ _.assign(CompileManager.prototype, {
                 let placeholderRegex = r`${escapeRegExp(SHARED_MODULES_PLACEHOLDER)}`
                 let isopackSource = fs.readFileSync(platformBuildFile).toString()
                 let sharedModulesSource = fs.readFileSync(path.resolve(batchDir, 'built', 'shared-modules.js')).toString()
+
+                if (platform === 'os')
+                    sharedModulesSource = sharedModulesSource.replace(/\bwindow\b/g, 'RocketModule')
+
                 isopackSource = isopackSource.replace(placeholderRegex, sharedModulesSource)
                 fs.writeFileSync(platformBuildFile, isopackSource)
 
-                // reflect the new length of the platform source file in the
+                // reflect the new length of the platform source file into the
                 // platform json file.
                 let platformJsonFile = platformPath + '.json'
                 let platformJson = JSON.parse(fs.readFileSync(platformJsonFile).toString())
@@ -1037,6 +1043,12 @@ _.assign(CompileManager.prototype, {
 
                 // for each of the file's platforms
                 _.each(file.platforms, (platform)=>{
+
+                    // add the globals from the shared-modules.js file into
+                    // each entrypoint's closure, only for the 'os' platform.
+                    if (platform === 'os')
+                        compiledSource = "Package['underscore']._.extend(this, Package['rocket:module'].RocketModule)\n"+compiledSource
+
                     // get the isopack for each platform
                     let platformPath = path.resolve(isopackPath, platform)
                     let isopackSourceFile = path.resolve(platformPath, 'packages', isopackName+'.js')
