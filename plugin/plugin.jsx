@@ -183,7 +183,9 @@ _.assign(CompileManager.prototype, {
          */
         batchDir = path.resolve(getAppPath(), '.meteor', 'local', 'rocket-module')
 
-        // define the initial webpack configuration object.
+        _.each(PLATFORM_NAMES, () => {
+        })
+        // the initial webpack configuration object.
         let webpackConfig = {
             entry: {
                 // f.e.:
@@ -226,7 +228,7 @@ _.assign(CompileManager.prototype, {
 
                 mkdirp.sync(packagePath)
 
-                // write package.json for the current package, containing npm
+                // write a package.json for the current package, containing npm
                 // deps, package isopack name, and version 0.0.0 (version is
                 // required by npm).
                 _.each(dependent.npmDependencies, (version, name) => {
@@ -254,10 +256,8 @@ _.assign(CompileManager.prototype, {
                 fs.writeFileSync(mainPackageDotJson, JSON.stringify(json))
 
                 _.each(dependent.files, (file, i, files) => {
-                    /*
-                     * Add the sources of each file into the current dependent's PackageInfo.
-                     * XXX Do this in getPackageInfo instead?
-                     */
+                    //Add the sources of each file into the current dependent's PackageInfo.
+                    //XXX Do this in getPackageInfo instead?
                     files[i] = _.extend({
                         name: file
                     }, getModuleSourceAndPlatforms(dependent, file))
@@ -329,111 +329,42 @@ _.assign(CompileManager.prototype, {
         }
 
         /*
-         * Put all the compiled files back into the isopacks.  For now we just
-         * write the shared modules to each architecture. In the future there
-         * will be a separate set of shared modules for each architecture.
+         * Put all the compiled files back into the isopacks.
+         *
+         * TODO: For now we just write the shared modules to each architecture.
+         * In the future there will be a separate set of shared modules for
+         * each architecture.
          */
-        let rocketModulePath = getPackageInfo('rocket:module').isopackPath
-
-        // if not windows
-        // TODO: windows
-        if (!os.platform().match(/^win/)) {
-            // make rocket:module's isopack files writable.
-            shell.exec(['chmod', '-R', 'u+w', rocketModulePath].join(' '))
-        }
-
-        // write the shared file to the build file of each of rocket:module's architectures.
-        _.each(PLATFORM_NAMES, function(platform) {
-            let platformPath = path.resolve(rocketModulePath, platform)
-            let isopackName = toIsopackName('rocket:module')
-            let platformBuildFile = path.resolve(platformPath, 'packages', isopackName+'.js')
-
-            // TODO: handle cordova builds which aren't present on the app-side.
-            if (fs.existsSync(platformBuildFile)) {
-                let placeholderRegex = r`${escapeRegExp(SHARED_MODULES_PLACEHOLDER)}`
-                let isopackSource = fs.readFileSync(platformBuildFile).toString()
-                let sharedModulesSource = fs.readFileSync(path.resolve(batchDir, 'built', 'shared-modules.js')).toString()
-
-                if (platform === 'os')
-                    sharedModulesSource = sharedModulesSource.replace(/\bwindow\b/g, 'RocketModule')
-
-                isopackSource = isopackSource.replace(placeholderRegex, sharedModulesSource)
-                fs.writeFileSync(platformBuildFile, isopackSource)
-
-                // reflect the new length of the platform source file into the
-                // platform json file.
-                let platformJsonFile = platformPath + '.json'
-                let platformJson = JSON.parse(fs.readFileSync(platformJsonFile).toString())
-                let indexOfResource = _.findIndex(platformJson.resources, function(resource) {
-                    return resource.file.match(r`${
-                        escapeRegExp(path.join(platform, 'packages', isopackName+'.js'))
-                    }`)
-                })
-                platformJson.resources[indexOfResource].length = isopackSource.length
-                fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
-            }
-        })
-
-        // write each compiled file back into it's place in each of the
-        // platform files of the isopack from where it came.
-        _.each(dependents, (dependent) => {
-            let isopackName = toIsopackName(dependent.name)
-            let builtPath = path.resolve(batchDir, 'built', isopackName)
-            let isopackPath = dependent.isopackPath
+        {
+            let rocketModulePath = getPackageInfo('rocket:module').isopackPath
 
             // if not windows
             // TODO: windows
             if (!os.platform().match(/^win/)) {
-                // make the dependent's isopack files writable.
-                shell.exec(['chmod', '-R', 'u+w', isopackPath].join(' '))
+                // make rocket:module's isopack files writable.
+                shell.exec(['chmod', '-R', 'u+w', rocketModulePath].join(' '))
             }
 
-            // For each file of the current dependent, write the file back to
-            // the dependent's isopack.
-            dependent.files = _.filter(dependent.files, (file)=>{
-                return file.name.match(/module\.js$/)
-            })
-            _.each(dependent.files, (file)=>{
-                let compiledSource = fs.readFileSync(
-                    path.resolve(builtPath, file.name)
-                ).toString()
-                console.log('\n----- package file:', path.resolve(builtPath, file.name))
+            // write the shared file to the build file of each of rocket:module's architectures.
+            _.each(PLATFORM_NAMES, function(platform) {
+                let platformPath = path.resolve(rocketModulePath, platform)
+                let isopackName = toIsopackName('rocket:module')
+                let platformBuildFile = path.resolve(platformPath, 'packages', isopackName+'.js')
 
-                // for each of the file's platforms
-                _.each(file.platforms, (platform)=>{
+                // TODO: handle cordova builds which aren't present on the app-side.
+                if (fs.existsSync(platformBuildFile)) {
+                    let placeholderRegex = r`${escapeRegExp(SHARED_MODULES_PLACEHOLDER)}`
+                    let isopackSource = fs.readFileSync(platformBuildFile).toString()
+                    let sharedModulesSource = fs.readFileSync(path.resolve(batchDir, 'built', 'shared-modules.js')).toString()
 
-                    // add the globals from the shared-modules.js file into
-                    // each entrypoint's closure, only for the 'os' platform.
                     if (platform === 'os')
-                        compiledSource = "Package['underscore']._.extend(this, Package['rocket:module'].RocketModule)\n"+compiledSource
+                        sharedModulesSource = sharedModulesSource.replace(/\bwindow\b/g, 'RocketModule')
 
-                    // get the isopack for each platform
-                    let platformPath = path.resolve(isopackPath, platform)
-                    let isopackSourceFile = path.resolve(platformPath, 'packages', isopackName+'.js')
-                    let isopackSource = fs.readFileSync(isopackSourceFile).toString()
+                    isopackSource = isopackSource.replace(placeholderRegex, sharedModulesSource)
+                    fs.writeFileSync(platformBuildFile, isopackSource)
 
-                    // split it by 7 new lines and put the source where it should go.
-                    let enclosedSources = isopackSource.split('\n\n\n\n\n\n\n')
-                    let index = _.findIndex(enclosedSources, (source)=>{
-                        console.log('----- source looking for:\n', dependent.name+'/'+file.name, platform)
-                        console.log('----- file looking in:\n', isopackSourceFile)
-
-                        // will be null if the current source was is already a
-                        // compiled-by-webpack source inserted in a previous
-                        // iteration of the current _.each loop.
-                        let meteorFilenameSection = source.match(FILENAME_REGEX)
-
-                        if (meteorFilenameSection)
-                            return meteorFilenameSection[0].match(r`/${file.name}/g`)
-                    })
-                    //console.log('--- index;', index)
-                    enclosedSources[index] = compiledSource
-
-                    //join by 7 new lines and write the file
-                    isopackSource = enclosedSources.join('\n\n\n\n\n\n\n')
-                    fs.writeFileSync(isopackSourceFile, isopackSource)
-
-                    //update the platform json file with file length.
+                    // reflect the new length of the platform source file into the
+                    // platform json file.
                     let platformJsonFile = platformPath + '.json'
                     let platformJson = JSON.parse(fs.readFileSync(platformJsonFile).toString())
                     let indexOfResource = _.findIndex(platformJson.resources, function(resource) {
@@ -443,10 +374,83 @@ _.assign(CompileManager.prototype, {
                     })
                     platformJson.resources[indexOfResource].length = isopackSource.length
                     fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
+                }
+            })
+
+            // write each compiled file back into it's place in each of the
+            // platform files of the isopack from where it came.
+            _.each(dependents, (dependent) => {
+                let isopackName = toIsopackName(dependent.name)
+                let builtPath = path.resolve(batchDir, 'built', isopackName)
+                let isopackPath = dependent.isopackPath
+
+                // if not windows
+                // TODO: windows
+                if (!os.platform().match(/^win/)) {
+                    // make the dependent's isopack files writable.
+                    shell.exec(['chmod', '-R', 'u+w', isopackPath].join(' '))
+                }
+
+                // For each file of the current dependent, write the file back to
+                // the dependent's isopack.
+                dependent.files = _.filter(dependent.files, (file)=>{
+                    return file.name.match(/module\.js$/)
+                })
+                _.each(dependent.files, (file)=>{
+                    let compiledSource = fs.readFileSync(
+                        path.resolve(builtPath, file.name)
+                    ).toString()
+                    console.log('\n----- package file:', path.resolve(builtPath, file.name))
+
+                    // for each of the file's platforms
+                    _.each(file.platforms, (platform)=>{
+
+                        // add the globals from the shared-modules.js file into
+                        // each entrypoint's closure, only for the 'os' platform.
+                        if (platform === 'os')
+                            compiledSource = "Package['underscore']._.extend(this, Package['rocket:module'].RocketModule)\n"+compiledSource
+
+                        // get the isopack for each platform
+                        let platformPath = path.resolve(isopackPath, platform)
+                        let isopackSourceFile = path.resolve(platformPath, 'packages', isopackName+'.js')
+                        let isopackSource = fs.readFileSync(isopackSourceFile).toString()
+
+                        // split it by 7 new lines and put the source where it should go.
+                        let enclosedSources = isopackSource.split('\n\n\n\n\n\n\n')
+                        let index = _.findIndex(enclosedSources, (source)=>{
+                            console.log('----- source looking for:\n', dependent.name+'/'+file.name, platform)
+                            console.log('----- file looking in:\n', isopackSourceFile)
+
+                            // will be null if the current source was is already a
+                            // compiled-by-webpack source inserted in a previous
+                            // iteration of the current _.each loop.
+                            let meteorFilenameSection = source.match(FILENAME_REGEX)
+
+                            if (meteorFilenameSection)
+                                return meteorFilenameSection[0].match(r`/${file.name}/g`)
+                        })
+                        //console.log('--- index;', index)
+                        enclosedSources[index] = compiledSource
+
+                        //join by 7 new lines and write the file
+                        isopackSource = enclosedSources.join('\n\n\n\n\n\n\n')
+                        fs.writeFileSync(isopackSourceFile, isopackSource)
+
+                        //update the platform json file with file length.
+                        let platformJsonFile = platformPath + '.json'
+                        let platformJson = JSON.parse(fs.readFileSync(platformJsonFile).toString())
+                        let indexOfResource = _.findIndex(platformJson.resources, function(resource) {
+                            return resource.file.match(r`${
+                                escapeRegExp(path.join(platform, 'packages', isopackName+'.js'))
+                            }`)
+                        })
+                        platformJson.resources[indexOfResource].length = isopackSource.length
+                        fs.writeFileSync(platformJsonFile, JSON.stringify(platformJson, null, 2))
+                    })
                 })
             })
-        })
-        console.log('--- done?!!!')
+            console.log('--- done?!!!')
+        }
 
         /*
          * Create (if it doesn't exist) a dummy file in the app that we can
