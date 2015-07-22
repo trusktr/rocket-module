@@ -16,9 +16,9 @@ Package.registerBuildPlugin({
         'meteor',
         'rocket:webpack@1.9.10',
         'rocket:build-tools@1.0.0',
-        'jsx@0.1.2'
+        'ecmascript@0.1.3'
     ],
-    sources: ['plugin/plugin.jsx'],
+    sources: ['plugin/plugin.js'],
     npmDependencies: {
         'lodash': '3.8.0',
         'glob': '5.0.5',
@@ -32,7 +32,11 @@ Package.registerBuildPlugin({
 })
 
 Package.onUse(function(api) {
-    api.versionsFrom('1.1.0.2');
+    //api.versionsFrom('1.1.0.2');
+
+    // needed if using Plugin.registerCompiler (for now?)
+    api.use('isobuild:compiler-plugin@1.0.0');
+
     api.addFiles('shared-modules.js')
     api.export('RocketModule')
 })

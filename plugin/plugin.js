@@ -44,6 +44,9 @@ const {
 let numberOfFilesToHandle = 0
 let isFirstRun            = !process.rocketModuleFirstRunComplete
 
+console.log('hello Plugin.registerCompiler', Plugin.registerCompiler)
+process.exit()
+
 /**
  * @return {boolean} Returns truthy if rocket:module is explicitly installed in the current app.
  */
