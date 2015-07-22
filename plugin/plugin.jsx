@@ -34,28 +34,13 @@ var {
     PLATFORM_NAMES,
     FILENAME_REGEX,
     getAppPath,
-    getAppPackagesPath, // unused
-    packageDirFromCompileStep, // unused
     getInstalledPackages,
-    getLines,
     isAppBuild,
     getDependentsOf,
-    getLocalPackagePath,
     isLocalPackage,
-    getIsopackPath,
-    getInfoFromPackageDotJs,
-    isoOrUni,
-    getDependenciesFromIsopack,
-    getAddedFilesFromIsopack,
-    getNpmDependenciesFromIsopack,
-    getInfoFromIsopack,
-    getInstalledVersion,
     getPackageInfo,
-    getAppId,
     toIsopackName,
     toPackageName,
-    toLocalPackageName,
-    getFileName,
     getPath
 } = BuildTools
 
@@ -513,7 +498,6 @@ function indexOfObjectWithKeyValue(array, key, value) {
 }
 
 // entrypoint
-// TODO: use getIsopackPath() here instead of the repeated logic.
 ~function() {
     if (isAppBuild() && getAppPath()) {
         //console.log(' --- dependents:', getDependentsOf('rocket:module'))
