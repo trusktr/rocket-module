@@ -160,6 +160,7 @@ _.assign(CompileManager.prototype, {
                             if (enclosedSources[j].match(FILENAME_REGEX)[0]
                                 .match(r`/${fileName}/g`)) {
 
+                                // if the source wasn't already gotten (it's the same across platform files).
                                 if (!source)
                                     source = enclosedSources[j].replace(r`^\s*${closureBeginRegex}`, '')
                                         .replace(r`${closureEndRegex}\s*$`, '')
