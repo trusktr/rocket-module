@@ -7,30 +7,27 @@
  */
 
 // npm builtin modules
-var path                  = Npm.require('path')
-var fs                    = Npm.require('fs')
-var os                    = Npm.require('os')
+const path                  = Npm.require('path')
+const fs                    = Npm.require('fs')
+const os                    = Npm.require('os')
 
 // npm modules
-var _                     = Npm.require('lodash')
-var glob                  = Npm.require('glob')
-var fse                   = Npm.require('fs-extra')
-var async                 = Npm.require('async')
-var regexr                = Npm.require('regexr')
-var mkdirp                = Npm.require('mkdirp')
-var npm                   = Npm.require('npm')
-var shell                 = Npm.require('shelljs')
+const _                     = Npm.require('lodash')
+const glob                  = Npm.require('glob')
+const fse                   = Npm.require('fs-extra')
+const async                 = Npm.require('async')
+const regexr                = Npm.require('regexr')
+const mkdirp                = Npm.require('mkdirp')
+const npm                   = Npm.require('npm')
+const shell                 = Npm.require('shelljs')
 
 // Meteor package imports
-var webpack               = Package['rocket:webpack'].Webpack
-var BuildTools            = Package['rocket:build-tools'].BuildTools
+const webpack               = Package['rocket:webpack'].Webpack
+const BuildTools            = Package['rocket:build-tools'].BuildTools
 
-var numberOfFilesToHandle = 0
-var isFirstRun            = !process.rocketModuleFirstRunComplete
+const SHARED_MODULES_PLACEHOLDER = '/*_____rocket_module_____:shared-modules*/'
 
-var SHARED_MODULES_PLACEHOLDER = '/*_____rocket_module_____:shared-modules*/'
-
-var {
+const {
     PLATFORM_NAMES,
     FILENAME_REGEX,
     getAppPath,
@@ -43,6 +40,9 @@ var {
     toPackageName,
     getPath
 } = BuildTools
+
+let numberOfFilesToHandle = 0
+let isFirstRun            = !process.rocketModuleFirstRunComplete
 
 /**
  * @return {boolean} Returns truthy if rocket:module is explicitly installed in the current app.
