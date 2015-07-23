@@ -44,92 +44,77 @@ const {
 let numberOfFilesToHandle = 0
 let isFirstRun            = !process.rocketModuleFirstRunComplete
 
-console.log('hello Plugin.registerCompiler', Plugin.registerCompiler)
-process.exit()
-
 /**
- * @return {boolean} Returns truthy if rocket:module is explicitly installed in the current app.
- */
-function appUsesRocketModule() {
-    return _.contains(getInstalledPackages(true), "rocket:module")
-}
-
-/*
- * See http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
- * TODO: move this to regexr
- */
-function escapeRegExp(str) {
-  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-}
-
-/**
- * A CompileManager keeps track of code splitting for dependency sharing across
+ * A RocketModuleCompiler keeps track of code splitting for dependency sharing across
  * bundles within the same Meteor package or across Meteor packages.
  *
- * @class CompileManager
+ * @class RocketModuleCompiler
  */
-function CompileManager(extentions) {
-    this.handledSourceCount = 0
-    this.extentions = extentions
-}
-_.assign(CompileManager.prototype, {
+class RocketModuleCompiler {
 
     /**
-     * @param {Array.string} extentions An array of files extensions
-     * determining which files the CompileManager will handle.
+     * @constructor
      */
-    constructor: CompileManager,
+    constructor() {}
 
     /**
-     * Sets up the source handlers for rocket:module's build plugin.
+     * @override
+     * @param
      */
-    initSourceHandlers: function initSourceHandlers() {
-        _.forEach(this.extentions, function(extension) {
-            Plugin.registerSourceHandler(extension, this.sourceHandler.bind(this))
-        }.bind(this))
-    },
+    processFilesForTarget(inputFiles) {
+        _.each(inputFiles, (inputFile) => {
+            //console.log(' ################################################################################## inputFile:\n',
+                //inputFile._resourceSlot.inputResource,
+                //' ------------------------------------------------------------------------------\n',
+                //inputFile._resourceSlot.sourceProcessor,
+                //' ------------------------------------------------------------------------------\n',
+                //inputFile._resourceSlot.packageSourceBatch
+            //)
 
-    /**
-     * This source handler simply marks entry points as in need of handling so
-     * the batch handler can take over on the app-side.
-     *
-     * See https://github.com/meteor/meteor/wiki/CompileStep-API-for-Build-Plugin-Source-Handlers
-     */
-    sourceHandler: function sourceHandler(compileStep) {
-        console.log(' --- Executing source handler on file: ', compileStep.fullInputPath, '\n')
-        compileStep.addJavaScript({
-            path: compileStep.inputPath,
-            data: compileStep.read().toString(),
-            sourcePath: compileStep.inputPath,
-            bare: false
+            let packageName = inputFile._resourceSlot.packageSourceBatch.unibuild.pkg.name
+            let fileName = inputFile._resourceSlot.inputResource.path
+            console.log('packageName', packageName, fileName)
+
+            let packageFileName = path.join(
+                // no package name means it's an app file.
+                `{${ packageName? toIsopackName(packageName) : '' }}`,
+
+                inputFile._resourceSlot.inputResource.path
+            )
+
+            let fileSource = inputFile._resourceSlot.inputResource.data.toString()
+            let extension = inputFile._resourceSlot.inputResource.extension
+            let platform = inputFile._resourceSlot.packageSourceBatch.unibuild.arch
+
+            console.log('---', packageFileName)
+
+            if (extension === 'js' && extension !== 'shared-modules.js' && extension !== 'module.js') {
+                console.log('Write non-entry file to batchDir.')
+            }
+            else if (extension === 'module.js') {
+                console.log('Write entrypoint file to batchDir.')
+                console.log('Add entrypoint to Webpack.')
+            }
+            else if (extension === 'shared-modules.js') {
+                if (packageName === 'rocket:module') {
+                    console.log('Dont write shared file to batchDir.')
+                    console.log('Place shared modules into rocket:module shared file after compilation.')
+                }
+            }
+
+            // if server-side
+            if (platform.match(/^os/g)) {
+                console.log('Build for the server-side, replacing window with RocketModule.')
+            }
+            else if (platform.match(/^web/g)) {
+                console.log('Build for the client-side, no mods needed.')
+            }
         })
 
-        // keep track of this so when we run on the app side we can detect when
-        // all local module.js files (those of the app and those of the app's
-        // packages) have been handled.
-        this.handledSourceCount += 1
-        console.log('hello count:', this.handledSourceCount)
-        if (isAppBuild() && getAppPath() && isFirstRun &&
-            this.handledSourceCount === numberOfFilesToHandle) {
+        process.exit()
 
-            this.onAppHandlingComplete()
-        }
-    },
-
-    onAppHandlingComplete: function onAppHandlingComplete() {
-        console.log(' -------- Handling complete! Number of handled source files: ', this.handledSourceCount)
-        this.batchHandler()
-    },
-
-    /**
-     * This will morph into the new batch handler...
-     */
-    batchHandler: function batchHandler() {
         var batchDir
         var r = regexr
-
-        var app = getAppPath()
-        if (!app) throw new Error('batchHandler is meant to be used while the directory that `meteor` is currently running in is a Meteor application.')
 
         function getModuleSourceAndPlatforms(extendedPackageInfo, fileName) {
             var r = regexr
@@ -482,7 +467,22 @@ _.assign(CompileManager.prototype, {
         console.log('--- no rebuild.')
         //process.exit()
     }
-})
+}
+
+/**
+ * @return {boolean} Returns truthy if rocket:module is explicitly installed in the current app.
+ */
+function appUsesRocketModule() {
+    return _.contains(getInstalledPackages(true), "rocket:module")
+}
+
+/*
+ * See http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+ * TODO: move this to regexr
+ */
+function escapeRegExp(str) {
+  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+}
 
 /**
  * Get the index of the object in an array that has the specified key value pair.
@@ -507,6 +507,21 @@ function indexOfObjectWithKeyValue(array, key, value) {
 
 // entrypoint
 ~function() {
+
+    Plugin.registerCompiler({
+        extensions: [
+            // non-entrypoint files (any package).
+            'js',
+
+            // entry point files (any package).
+            'module.js',
+
+            // File for shared modules (only the one in rocket:module).
+            'shared-modules.js'
+        ]
+    }, () => new RocketModuleCompiler)
+    return
+
     if (isAppBuild() && getAppPath()) {
         //console.log(' --- dependents:', getDependentsOf('rocket:module'))
         //process.exit()
@@ -592,7 +607,7 @@ function indexOfObjectWithKeyValue(array, key, value) {
     }
 
     // TODO: code splitting among all bundles
-    var compileManager = new CompileManager([
+    var compileManager = new RocketModuleCompiler([
         // also catches module.ts files compiled by mologie:typescript
         'module.js',
 

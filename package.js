@@ -18,6 +18,8 @@ Package.registerBuildPlugin({
         'rocket:build-tools@1.0.0',
         'ecmascript@0.1.3'
     ],
+
+    //sources: ['hello'],
     sources: ['plugin/plugin.js'],
     npmDependencies: {
         'lodash': '3.8.0',
