@@ -138,7 +138,9 @@ apply until version 1.0.0.*
           isopack and therefore it will load before all the other entry points.~~
 
 ### v0.2.0
-- [ ] Register a new compiler with Plugin.registerCompiler.
+- [x] Register a new compiler with Plugin.registerCompiler.
+- [ ] Redo everything but with the files handed to rocket:module by Meteor,
+      thus eliminating the two previous month's worth of work. (:
 
 ### v1.0.0
 - [ ] Finish commented TODOs that are left in rocket:module.
