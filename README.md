@@ -29,6 +29,7 @@ apply until version 1.0.0.*
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
 - [ ] Handle source maps.
+- [ ] Test in Windows.
 - [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Update README with usage and configuration documentation.
   - [ ] Describe how to use npm dependencies in an app directly, using a spare
@@ -41,6 +42,5 @@ apply until version 1.0.0.*
 - [ ] Support npm dependencies for apps that already use meteorhacks:npm.
   - [ ] Detect meteorhacks:npm's local "npm-container" package and install it's
         npm dependencies alongside those of the packages dependent rocket:module.
-- [ ] Test in Windows.
 - [x] Code split for each architecture instead of all at once (each
       architecture may possibly have different shared modules).
