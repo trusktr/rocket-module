@@ -24,12 +24,15 @@ apply until version 1.0.0.*
       thus eliminating the two previous month's worth of work. (:
 
 ### v1.0.0
+- [ ] Add common Webpack loaders: babel, css, coffeescript, typescript, etc.
 - [ ] Use Webpack's caching feature so that only modified files are rebuilt.
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
 - [ ] Handle source maps.
 - [ ] Test in Windows.
+- [ ] Output errors encountered by Webpack when compiling entry points, using
+      InputFile.error()
 - [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Update README with usage and configuration documentation.
   - [ ] Describe how to use npm dependencies in an app directly, using a spare
@@ -37,8 +40,6 @@ apply until version 1.0.0.*
 - [ ] Celebrate! Wooooo!
 
 ### v1.x.x (in order of importance)
-- [ ] Output errors encountered by Webpack when compiling entry points, using
-      InputFile.error()
 - [ ] Support npm dependencies for apps that already use meteorhacks:npm.
   - [ ] Detect meteorhacks:npm's local "npm-container" package and install it's
         npm dependencies alongside those of the packages dependent rocket:module.
