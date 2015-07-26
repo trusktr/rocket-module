@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.1.6',
+    version: '0.2.0',
     // Brief, one-line summary of the package.
     summary: 'ES6 Modules for Meteor. (And CJS/AMD too!)',
     // URL to the Git repository containing the source code for this package.
