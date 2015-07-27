@@ -24,6 +24,8 @@ apply until version 1.0.0.*
       thus eliminating the two previous month's worth of work. (:
 
 ### v1.0.0
+- [ ] Switch to npm CLI instead of programmatic usage to see if that fixes
+      random NPM bugs that don't happen when I try from CLI.
 - [ ] Add common Webpack loaders: babel, coffeescript, typescript, glslify,
       css, less, sass, and stylus.
 - [ ] Use Webpack's caching feature so that only
@@ -34,9 +36,9 @@ apply until version 1.0.0.*
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
 - [ ] Handle source maps.
-- [ ] Use npm.commands.outdated to detect if we need to run
-      npm.commands.update. We'll need to run the update command when dependencies
-      listed in npm.json files have changed in order to update the local packages.
+- [ ] Use `npm outdated` to detect if we need to run `npm update`. We'll need
+      to run the update command when dependencies listed in npm.json files have
+      changed in order to update the local packages.
 - [ ] Test in Windows.
 - [ ] Report file-specific Webpack errors using corresponding InputFile.error() calls.
 - [ ] Finish commented TODOs that are left in rocket:module.
