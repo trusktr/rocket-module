@@ -25,7 +25,10 @@ apply until version 1.0.0.*
 
 ### v1.0.0
 - [ ] Add common Webpack loaders: babel, css, coffeescript, typescript, etc.
-- [ ] Use Webpack's caching feature so that only modified files are rebuilt.
+- [ ] Use Webpack's caching feature so that only
+      modified files are rebuilt. Make sure to write the
+      replacement of `window` by `RocketModule` to the built
+      files if Webpack's cache reads the built files.
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.

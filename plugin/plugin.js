@@ -139,6 +139,31 @@ class RocketModuleCompiler {
             dependencies: {}
         }
 
+        // extract the npm dependency files from the inputFiles
+        let dependencyFiles = _.filter(inputFiles, function(file) {
+            let { fileName } = fileInfo(file)
+            return fileName.match(/npm\.json$/g)
+        })
+        inputFiles = _.filter(inputFiles, function(file) {
+            let { fileName } = fileInfo(file)
+            return !fileName.match(/npm\.json$/g)
+        })
+
+        // Make an array of dependency objects, one per package.
+        let npmDependencies = {}
+        let jsonError = null
+        _.each(dependencyFiles, function(file) {
+            let { isopackName, fileSource } = fileInfo(file)
+            try {
+                npmDependencies[isopackName] = JSON.parse(fileSource)
+            }
+            catch (error) {
+                jsonError = error
+                file.error(error)
+            }
+        })
+        if (jsonError) return;
+
         /*
          * Write the file sources, and package.json files for npm dependencies,
          * to the platformBatchDir to be handled by Webpack.
@@ -151,6 +176,7 @@ class RocketModuleCompiler {
 
             let batchDirPackagePath = path.resolve(platformBatchDir, 'packages', isopackName)
 
+            console.log('Making package path: ', platform, batchDirPackagePath)
             // make the package path, and other things, in the batch dir
             mkdirp.sync(batchDirPackagePath)
 
@@ -158,28 +184,22 @@ class RocketModuleCompiler {
             // deps, package isopack name, and version 0.0.0 (version is
             // required by npm).
             if (currentPackage !== isopackName) {
-                if (isopackName !== '__app__') { // if not the app (__app__)
-                    let dependent = getPackageInfo(package.name) // TODO: Update getPackageInfo for Meteor 1.2, isopack-2 format.
-                    _.each(dependent.npmDependencies, (version, name) => {
-                        if (semver.valid(version)) // if it's not valid, it may be something else like a git URL, etc.
-                            dependent.npmDependencies[name] = '^'+version
-                    })
-                    fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
-                        "name": "${isopackName}",
-                        "version": "0.0.0",
-                        "dependencies": ${
-                            JSON.stringify(dependent.npmDependencies)
-                        }
-                    }`)
 
-                    // Specify the current package as a dependency in the main
-                    // package.json
-                    mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
-                }
-                else {
-                    // TODO: Write package.json for the app (__app__) if it uses
-                    // meteorhacks:npm.
-                }
+                // if the current package has no npm dependencies, give it an empty dependency list.
+                if (!_.has(npmDependencies, isopackName))
+                    npmDependencies[isopackName] = {}
+
+                fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
+                    "name": "${isopackName}",
+                    "version": "0.0.0",
+                    "dependencies": ${
+                        JSON.stringify(npmDependencies[isopackName])
+                    }
+                }`)
+
+                // Specify the current package as a dependency in the main
+                // package.json
+                mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
             }
 
             // write non-entrypoint files to the platformBatchDir
@@ -222,7 +242,7 @@ class RocketModuleCompiler {
          * Install all the packages and their npm dependencies in the platformBatchDir.
          */
         let savedLogFunction = console.log
-        console.log = function() {}
+        console.log = function() {} // silence npm output.
         Meteor.wrapAsync((callback) => {
             npm.load({ prefix: platformBatchDir, loglevel: 'silent' }, callback)
         })()
@@ -390,9 +410,14 @@ function fileInfo(inputFile) {
 
     let package = unibuild.pkg
     let fileName = inputResource.path
-    // the isopackName of the current file's package, or __app__ if the
-    // file belongs to the app.
-    let isopackName = package.name ? toIsopackName(package.name) : '__app__'
+
+    // the isopackName of the current file's package, or rocket_module__app
+    // if the file belongs to the app.
+    // Note: I was using a name like __app__ instead of rocket_module__app
+    // but a name with leading underscores causes npm to crash
+    // (https://github.com/npm/npm/issues/9071).
+    let isopackName = package.name ? toIsopackName(package.name) : 'rocket_module__app'
+
     let packageFileName = path.join(isopackName, fileName)
 
     let fileSource = inputResource.data.toString()
@@ -410,6 +435,7 @@ function fileInfo(inputFile) {
 {
     Plugin.registerCompiler({
         // TODO: Add css, typescript, coffeescript, etc.
-        extensions: [ 'js' ]
+        extensions: [ 'js' ],
+        filenames: [ 'npm.json' ]
     }, () => new RocketModuleCompiler)
 }
