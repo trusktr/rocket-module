@@ -29,7 +29,8 @@ Package.registerBuildPlugin({
         'regexr': '1.1.1',
         'mkdirp': '0.5.1',
         'npm': '2.13.0',
-        'shelljs': '0.5.1'
+        'shelljs': '0.5.1',
+        'semver': '5.0.1'
     }
 })
 

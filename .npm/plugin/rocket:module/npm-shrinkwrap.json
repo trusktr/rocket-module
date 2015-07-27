@@ -806,6 +806,9 @@
     "regexr": {
       "version": "1.1.1"
     },
+    "semver": {
+      "version": "5.0.1"
+    },
     "shelljs": {
       "version": "0.5.1"
     }

@@ -20,6 +20,7 @@ const regexr                = Npm.require('regexr')
 const mkdirp                = Npm.require('mkdirp')
 const npm                   = Npm.require('npm')
 const shell                 = Npm.require('shelljs')
+const semver                = Npm.require('semver')
 
 // Meteor package imports
 const webpack               = Package['rocket:webpack'].Webpack
@@ -160,7 +161,8 @@ class RocketModuleCompiler {
                 if (isopackName !== '__app__') { // if not the app (__app__)
                     let dependent = getPackageInfo(package.name) // TODO: Update getPackageInfo for Meteor 1.2, isopack-2 format.
                     _.each(dependent.npmDependencies, (version, name) => {
-                        dependent.npmDependencies[name] = '^'+version
+                        if (semver.valid(version)) // if it's not valid, it may be something else like a git URL, etc.
+                            dependent.npmDependencies[name] = '^'+version
                     })
                     fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
                         "name": "${isopackName}",
