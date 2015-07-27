@@ -120,11 +120,16 @@ class RocketModuleCompiler {
                     //path.resolve('./node_modules/username_packagename/node_modules')
                 ]
             },
+            resolveLoader: {
+                fallback: [ /* f.e., same as resolve, but for loaders. */ ]
+            },
             module: {
                 loaders: [
+                    // For loading CSS files.
                     { test: /\.css$/, loader: "style!css" }
-                    // TODO: get babel-loader working.
-                    //,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
+
+                    // Support for ES6 modules and the latest ES syntax.
+                    ,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
                 ]
             }
         }
@@ -137,6 +142,8 @@ class RocketModuleCompiler {
          * Write the file sources, and package.json files for npm dependencies,
          * to the platformBatchDir to be handled by Webpack.
          */
+        {
+        let currentPackage = null
         _.each(inputFiles, (inputFile) => {
             let { package, fileName, isopackName, packageFileName, fileSource }
                 = fileInfo(inputFile)
@@ -149,26 +156,27 @@ class RocketModuleCompiler {
             // write a package.json for the current package, containing npm
             // deps, package isopack name, and version 0.0.0 (version is
             // required by npm).
-            //
-            // TODO: Write package.json for the app (__app__) if it uses
-            // meteorhacks:npm.
-            if (package.name) { // if not the app (__app__)
-                let dependent = getPackageInfo(package.name) // TODO: Update getPackageInfo for Meteor 1.2, isopack-2 format.
-                _.each(dependent.npmDependencies, (version, name) => {
-                    dependent.npmDependencies[name] = '^'+version
-                })
-                fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
-                    "name": "${isopackName}",
-                    "version": "0.0.0",
-                    "dependencies": ${
-                        JSON.stringify(dependent.npmDependencies)
-                    }
-                }`)
+            if (currentPackage !== isopackName) {
+                if (isopackName !== '__app__') { // if not the app (__app__)
+                    let dependent = getPackageInfo(package.name) // TODO: Update getPackageInfo for Meteor 1.2, isopack-2 format.
+                    _.each(dependent.npmDependencies, (version, name) => {
+                        dependent.npmDependencies[name] = '^'+version
+                    })
+                    fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
+                        "name": "${isopackName}",
+                        "version": "0.0.0",
+                        "dependencies": ${
+                            JSON.stringify(dependent.npmDependencies)
+                        }
+                    }`)
 
-                // Specify the current dependent (except for rocket:module)
-                // as a dependency in the main package.json
-                if (package.name !== 'rocket:module') {
+                    // Specify the current package as a dependency in the main
+                    // package.json
                     mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
+                }
+                else {
+                    // TODO: Write package.json for the app (__app__) if it uses
+                    // meteorhacks:npm.
                 }
             }
 
@@ -200,7 +208,9 @@ class RocketModuleCompiler {
             else if (fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module') {
                 // do nothing.
             }
+            currentPackage = isopackName
         })
+        }
 
         // Write the main package.json file.
         let mainPackageDotJson = path.resolve(platformBatchDir, 'package.json')
@@ -222,12 +232,20 @@ class RocketModuleCompiler {
         // list each node_modules folder (those installed in the previous
         // step) in webpackConfig's resolve.fallback option.
         _.each(inputFiles, (inputFile) => {
-            let { isopackName } = fileInfo(inputFile)
+            let currentPackage = null
+            let { package, isopackName } = fileInfo(inputFile)
             let nodeModulesPath = path.resolve(platformBatchDir, 'node_modules', isopackName, 'node_modules')
 
             // TODO: node_modules for the app if meteorhacks:npm is installed.
-            if (fs.existsSync(nodeModulesPath))
+            if (currentPackage !== isopackName && fs.existsSync(nodeModulesPath)) {
                 webpackConfig.resolve.fallback.push(nodeModulesPath)
+
+                // additionally, add rocket:module's node_modules folder to resolveLoader.fallback
+                if (package.name === 'rocket:module') {
+                    webpackConfig.resolveLoader.fallback.push(nodeModulesPath)
+                }
+            }
+            currentPackage = isopackName
         })
 
         /*
@@ -239,17 +257,15 @@ class RocketModuleCompiler {
 
             // TODO: Find out why Webpack doesn't code split shared modules in this setup.
             // Files an issue on Webpack at https://github.com/webpack/webpack/issues/1296
+            let compileErrors
             let webpackCompiler = webpack(webpackConfig)
             let webpackResult = Meteor.wrapAsync((callback) =>
                 webpackCompiler.run((error, stats) => {
 
-                    // TODO: Meteor doesn't catch this error.
-                    // It would be nice to put Meteor into an error state,
-                    // showing this error, so the user can fix what's broken
-                    // here.
-                    //
-                    // Maybe we can detect which file had the error, then get the
-                    // corresponding InputFile and call the .error method on it?
+                    // TODO: Meteor doesn't catch this error (if there's an
+                    // error running the Webpack compiler).  It would be nice
+                    // to put Meteor into an error state, showing this error,
+                    // so the user can fix what's broken here.
                     if (error) throw new Error(error)
 
                     callback(error, stats)
@@ -257,6 +273,14 @@ class RocketModuleCompiler {
             )()
 
             process.chdir(oldCwd)
+
+            // TODO: Detect errors for specific files, then pass the error to
+            // the corresponding InputFile.error method. If the error is
+            // generic, not for a specific file, then just throw an error.
+            if (compileErrors) {
+                inputFiles[0].error(new Error(compileErrors[0]))
+                return
+            }
         }
 
         /*
@@ -295,7 +319,7 @@ class RocketModuleCompiler {
                 // add the RocketModule symbol to the entry points so that they
                 // can read the stuff that Webpack added to RocketModule in the
                 // shared-modules.js file.
-                if (platform === 'os') {
+                if (platform.match(/^os/g)) {
                     // extend function from http://stackoverflow.com/a/12317051/454780
                     builtFileSource = (`
                         function rocketModuleExtend(target, source) {
