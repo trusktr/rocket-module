@@ -127,10 +127,12 @@ class RocketModuleCompiler {
             module: {
                 loaders: [
                     // For loading CSS files.
-                    { test: /\.css$/, loader: "style!css" }
+                    { test: /\.css$/, loader: "style!css" },
 
                     // Support for ES6 modules and the latest ES syntax.
-                    ,{ test: /\.js$/, loader: "babel", exclude: /node_modules/ }
+                    { test: /\.js$/, loader: "babel", exclude: /node_modules/ },
+
+                    { test: /\.glsl$/, loader: "glslify!raw" }
                 ]
             }
         }
@@ -252,22 +254,24 @@ class RocketModuleCompiler {
 
         // list each node_modules folder (those installed in the previous
         // step) in webpackConfig's resolve.fallback option.
-        _.each(inputFiles, (inputFile) => {
-            let currentPackage = null
-            let { package, isopackName } = fileInfo(inputFile)
-            let nodeModulesPath = path.resolve(platformBatchDir, 'node_modules', isopackName, 'node_modules')
+        // XXX: Is this still needed now that we are using NPM v3 and all deps
+        // are flat?
+        //_.each(inputFiles, (inputFile) => {
+            //let currentPackage = null
+            //let { package, isopackName } = fileInfo(inputFile)
+            //let nodeModulesPath = path.resolve(platformBatchDir, 'node_modules', isopackName, 'node_modules')
 
-            // TODO: node_modules for the app if meteorhacks:npm is installed.
-            if (currentPackage !== isopackName && fs.existsSync(nodeModulesPath)) {
-                webpackConfig.resolve.fallback.push(nodeModulesPath)
+            //// TODO: node_modules for the app if meteorhacks:npm is installed.
+            //if (currentPackage !== isopackName && fs.existsSync(nodeModulesPath)) {
+                //webpackConfig.resolve.fallback.push(nodeModulesPath)
 
-                // additionally, add rocket:module's node_modules folder to resolveLoader.fallback
-                if (package.name === 'rocket:module') {
-                    webpackConfig.resolveLoader.fallback.push(nodeModulesPath)
-                }
-            }
-            currentPackage = isopackName
-        })
+                //// additionally, add rocket:module's node_modules folder to resolveLoader.fallback
+                //if (package.name === 'rocket:module') {
+                    //webpackConfig.resolveLoader.fallback.push(nodeModulesPath)
+                //}
+            //}
+            //currentPackage = isopackName
+        //})
 
         /*
          * Run the Webpack compiler synchronously.
