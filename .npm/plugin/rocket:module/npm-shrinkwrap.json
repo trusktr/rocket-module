@@ -393,11 +393,11 @@
         "are-we-there-yet": {
           "version": "1.0.4"
         },
-        "array-index": {
-          "version": "0.1.1"
-        },
         "asap": {
           "version": "2.0.3"
+        },
+        "array-index": {
+          "version": "0.1.1"
         },
         "asn1": {
           "version": "0.1.11"
@@ -420,11 +420,11 @@
         "bluebird": {
           "version": "2.9.34"
         },
-        "boom": {
-          "version": "2.8.0"
-        },
         "brace-expansion": {
           "version": "1.1.0"
+        },
+        "boom": {
+          "version": "2.8.0"
         },
         "caseless": {
           "version": "0.11.0"
@@ -435,11 +435,11 @@
         "clone": {
           "version": "0.1.19"
         },
-        "combined-stream": {
-          "version": "1.0.5"
-        },
         "commander": {
           "version": "2.8.1"
+        },
+        "combined-stream": {
+          "version": "1.0.5"
         },
         "concat-map": {
           "version": "0.0.1"
@@ -450,11 +450,11 @@
         "cryptiles": {
           "version": "2.0.4"
         },
-        "debug": {
-          "version": "2.2.0"
-        },
         "ctype": {
           "version": "0.5.3"
+        },
+        "debug": {
+          "version": "2.2.0"
         },
         "debuglog": {
           "version": "1.0.1"
@@ -486,11 +486,11 @@
         "gauge": {
           "version": "1.2.2"
         },
-        "generate-object-property": {
-          "version": "1.2.0"
-        },
         "generate-function": {
           "version": "2.0.0"
+        },
+        "generate-object-property": {
+          "version": "1.2.0"
         },
         "graceful-readlink": {
           "version": "1.0.1"
@@ -519,11 +519,11 @@
         "is-relative": {
           "version": "0.1.3"
         },
-        "isstream": {
-          "version": "0.1.2"
-        },
         "isarray": {
           "version": "0.0.1"
+        },
+        "isstream": {
+          "version": "0.1.2"
         },
         "jju": {
           "version": "1.2.0"
@@ -549,11 +549,11 @@
         "lodash._basecallback": {
           "version": "3.3.1"
         },
-        "lodash._basecopy": {
-          "version": "3.0.1"
-        },
         "lodash._baseclone": {
           "version": "3.3.0"
+        },
+        "lodash._basecopy": {
+          "version": "3.0.1"
         },
         "lodash._basedifference": {
           "version": "3.0.3"
@@ -573,11 +573,11 @@
         "lodash._basetostring": {
           "version": "3.0.1"
         },
-        "lodash._bindcallback": {
-          "version": "3.0.1"
-        },
         "lodash._baseuniq": {
           "version": "3.0.3"
+        },
+        "lodash._bindcallback": {
+          "version": "3.0.1"
         },
         "lodash._cacheindexof": {
           "version": "3.0.2"
@@ -603,11 +603,11 @@
         "lodash.istypedarray": {
           "version": "3.0.2"
         },
-        "lodash.pad": {
-          "version": "3.1.1"
-        },
         "lodash.keys": {
           "version": "3.1.2"
+        },
+        "lodash.pad": {
+          "version": "3.1.1"
         },
         "lodash.padleft": {
           "version": "3.1.1"
@@ -693,17 +693,17 @@
         "spdx-correct": {
           "version": "1.0.0"
         },
-        "string_decoder": {
-          "version": "0.10.31"
-        },
         "spdx-license-ids": {
           "version": "1.0.2"
         },
-        "strip-ansi": {
-          "version": "2.0.1"
+        "string_decoder": {
+          "version": "0.10.31"
         },
         "stringstream": {
           "version": "0.0.4"
+        },
+        "strip-ansi": {
+          "version": "2.0.1"
         },
         "supports-color": {
           "version": "2.0.0"

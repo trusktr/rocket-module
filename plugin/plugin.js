@@ -119,10 +119,14 @@ class RocketModuleCompiler {
                     // f.e.:
                     //path.resolve('./node_modules/username_packagename/node_modules'),
                     //path.resolve('./node_modules/username_packagename/node_modules')
+                    './node_modules'
                 ]
             },
             resolveLoader: {
-                fallback: [ /* f.e., same as resolve, but for loaders. */ ]
+                fallback: [
+                    /* f.e., same as resolve, but for loaders. */
+                    './node_modules'
+                ]
             },
             module: {
                 loaders: [
