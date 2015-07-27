@@ -3,7 +3,7 @@ rocket:module
 
 ES6 Modules for Meteor. (And CJS/AMD too!)
 
-**NOTE: This isn't ready yet! It'll be ready at v1.0.0.**
+**NOTE: This isn't ready yet! It'll be ready at v1.0.0., although it is now in a usable state if you want to help test it out. :)**
 
 Installation
 ------------
@@ -24,7 +24,8 @@ apply until version 1.0.0.*
       thus eliminating the two previous month's worth of work. (:
 
 ### v1.0.0
-- [ ] Add common Webpack loaders: babel, css, coffeescript, typescript, etc.
+- [ ] Add common Webpack loaders: babel, coffeescript, typescript, glslify,
+      css, less, sass, and stylus.
 - [ ] Use Webpack's caching feature so that only
       modified files are rebuilt. Make sure to write the
       replacement of `window` by `RocketModule` to the built
@@ -33,9 +34,11 @@ apply until version 1.0.0.*
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
 - [ ] Handle source maps.
+- [ ] Use npm.commands.outdated to detect if we need to run
+      npm.commands.update. We'll need to run the update command when dependencies
+      listed in npm.json files have changed in order to update the local packages.
 - [ ] Test in Windows.
-- [ ] Output errors encountered by Webpack when compiling entry points, using
-      InputFile.error()
+- [ ] Report file-specific Webpack errors using corresponding InputFile.error() calls.
 - [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Update README with usage and configuration documentation.
   - [ ] Describe how to use npm dependencies in an app directly, using a spare
