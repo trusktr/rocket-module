@@ -270,6 +270,9 @@ class RocketModuleCompiler {
                     // so the user can fix what's broken here.
                     if (error) throw new Error(error)
 
+                    if (stats.compilation.errors && stats.compilation.errors.length)
+                        compileErrors = stats.compilation.errors
+
                     callback(error, stats)
                 })
             )()
