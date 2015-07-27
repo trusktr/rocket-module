@@ -176,7 +176,6 @@ class RocketModuleCompiler {
 
             let batchDirPackagePath = path.resolve(platformBatchDir, 'packages', isopackName)
 
-            console.log('Making package path: ', platform, batchDirPackagePath)
             // make the package path, and other things, in the batch dir
             mkdirp.sync(batchDirPackagePath)
 
@@ -290,8 +289,13 @@ class RocketModuleCompiler {
                     // so the user can fix what's broken here.
                     if (error) throw new Error(error)
 
-                    if (stats.compilation.errors && stats.compilation.errors.length)
-                        compileErrors = stats.compilation.errors
+                    let errors = stats.toJson().errors
+                    errors = _.filter(errors, function(error) {
+                        return !isWhitelistedWebpackError(error)
+                    })
+
+                    if (errors && errors.length)
+                        compileErrors = errors
 
                     callback(error, stats)
                 })
@@ -429,6 +433,21 @@ function fileInfo(inputFile) {
         package, fileName, isopackName, packageFileName, fileSource,
         extension, platform
     }
+}
+
+function isWhitelistedWebpackError(error) {
+    let r = regexr
+    let whitelistError = false
+
+    if (error.toString().match(r`/${
+        escapeRegExp(
+            `Module not found: Error: Cannot resolve module 'glslify'`
+        )
+    }.*famous/g`)) {
+        whitelistError = true
+    }
+
+    return whitelistError
 }
 
 // entrypoint
