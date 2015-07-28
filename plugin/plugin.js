@@ -274,12 +274,30 @@ class RocketModuleCompiler {
             console.log = savedLogFunction
         }
 
+        /**
+         * A function for calling npm commands. F.e.:
+         *
+         * ```
+         * npmCommand('install foo bar@1.2.3 baz --save')
+         * ```
+         *
+         * Set npmCommand.bin to the path of an npm executable, otherwise it
+         * defaults to the npm found in your PATH. F.e.:
+         *
+         * ```
+         * npmCommand.bin = '/path/to/npm'
+         * npmCommand('update')
+         * ```
+         *
+         * @param {Array.string} args An array of arguments to pass to npm.
+         * They get concatenated together.
+         *
+         * XXX: Use child_process.spawn?
+         */
         function npmCommand(...args) {
             args = _.reduce(args, function(result, arg) {
                 return `${result} ${arg}`
             }, '')
-
-            console.log('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%', args)
 
             shell.exec(`${npmCommand.bin || 'npm'} ${args}`)
         }
@@ -288,13 +306,8 @@ class RocketModuleCompiler {
         /*
          * Install all the packages and their npm dependencies in the platformBatchDir.
          */
-        {
-        let savedLogFunction = console.log
-        console.log = function() {} // silence npm output.
         npmCommand.bin = path.resolve(npmContainerDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js')
         npmCommand(`--prefix ${platformBatchDir} --silent install ${platformBatchDir}`)
-        console.log = savedLogFunction
-        }
 
         // list each node_modules folder (those installed in the previous
         // step) in webpackConfig's resolve.fallback option.
