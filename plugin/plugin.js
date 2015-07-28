@@ -114,8 +114,15 @@ class RocketModuleCompiler {
                 path: path.resolve(platformBatchDir, './built'),
                 filename: '[name]',
             },
-            plugins: [ new webpack.optimize.CommonsChunkPlugin("shared-modules.js") ],
+            plugins: [ new webpack.optimize.CommonsChunkPlugin('shared-modules.js') ],
             resolve: {
+                extensions: [
+                    // defaults
+                    '', '.webpack.js', '.web.js', '.js',
+
+                    //custom
+                    '.jsx', '.css'
+                ],
                 fallback: [
                     // f.e.:
                     //path.resolve('./node_modules/username_packagename/node_modules'),
@@ -132,12 +139,16 @@ class RocketModuleCompiler {
             module: {
                 loaders: [
                     // For loading CSS files.
-                    { test: /\.css$/, loader: "style!css" },
+                    { test: /\.css$/, loader: 'style!css' },
 
                     // Support for ES6 modules and the latest ES syntax.
-                    { test: /\.js$/, loader: "babel", exclude: /node_modules/ },
+                    { test: /\.js$/, loader: 'babel', exclude: /node_modules/ },
 
-                    { test: /\.glsl$/, loader: "glslify!raw" }
+                    // glsl files.
+                    { test: /\.glsl$/, loader: 'glslify!raw' },
+
+                    // jsx files.
+                    { test: /\.jsx$/, loader: 'babel' },
                 ]
             }
         }
