@@ -26,7 +26,7 @@ apply until version 1.0.0.*
 ### v1.0.0
 - [ ] Switch to npm CLI instead of programmatic usage to see if that fixes
       random NPM bugs that don't happen when I try from CLI.
-- [ ] Add common Webpack loaders: babel, coffeescript, typescript, glslify,
+- [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
       css, less, sass, and stylus.
 - [ ] Use Webpack's caching feature so that only
       modified files are rebuilt. Make sure to write the
