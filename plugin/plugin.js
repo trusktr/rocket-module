@@ -99,7 +99,8 @@ class RocketModuleCompiler {
         /*
          * Choose a temporary output location that doesn't exist yet.
          */
-        let platformBatchDir = path.resolve(getAppPath(), '.meteor', 'local', 'rocket-module', platform)
+        let rocketModuleCache = path.resolve(getAppPath(), '.meteor', 'local', 'rocket-module')
+        let platformBatchDir = path.resolve(rocketModuleCache, 'platform-builds', platform)
         if (!fs.existsSync(platformBatchDir)) mkdirp.sync(platformBatchDir)
 
         // the initial webpack configuration object.
@@ -244,17 +245,45 @@ class RocketModuleCompiler {
         fs.writeFileSync(mainPackageDotJson, JSON.stringify(mainPackageDotJsonData))
 
         /*
+         * Use npm to install npm locally for us to use via CLI. This is easier
+         * than having to look for npm in the rocket:module isopack.
+         */
+        let npmContainerDirectory = path.resolve(rocketModuleCache, 'npmContainer')
+        if (!fs.existsSync(npmContainerDirectory)) {
+            mkdirp(npmContainerDirectory)
+
+            let savedLogFunction = console.log
+            console.log = function() {} // silence npm output.
+            Meteor.wrapAsync((callback) => {
+                npm.load({ prefix: npmContainerDirectory, loglevel: 'silent' }, callback)
+            })()
+            Meteor.wrapAsync((callback) => {
+                npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
+            })()
+            console.log = savedLogFunction
+        }
+
+        function npmCommand(...args) {
+            args = _.reduce(args, function(result, arg) {
+                return `${result} ${arg}`
+            }, '')
+
+            console.log('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%', args)
+
+            shell.exec(`${npmCommand.bin || 'npm'} ${args}`)
+        }
+        npmCommand.bin = null
+
+        /*
          * Install all the packages and their npm dependencies in the platformBatchDir.
          */
+        {
         let savedLogFunction = console.log
         console.log = function() {} // silence npm output.
-        Meteor.wrapAsync((callback) => {
-            npm.load({ prefix: platformBatchDir, loglevel: 'silent' }, callback)
-        })()
-        Meteor.wrapAsync((callback) => {
-            npm.commands.install(platformBatchDir, [], callback)
-        })()
+        npmCommand.bin = path.resolve(npmContainerDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js')
+        npmCommand(`--prefix ${platformBatchDir} --silent install ${platformBatchDir}`)
         console.log = savedLogFunction
+        }
 
         // list each node_modules folder (those installed in the previous
         // step) in webpackConfig's resolve.fallback option.
