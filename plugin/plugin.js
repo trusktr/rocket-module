@@ -219,19 +219,23 @@ class RocketModuleCompiler {
                 mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
             }
 
-            // write non-entrypoint files to the platformBatchDir
-            // TODO TODO TODO TODO handle other files.
+            // All .js files except module.js files can be required from
+            // module.js entry point files.
             if (fileName.match(/\.js$/g)
                 && !(fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module')
                 && !fileName.match(/module\.js$/g)) {
+
+                // write non-entrypoint files to the platformBatchDir
+                let filePath = path.resolve(batchDirPackagePath, fileName)
+                mkdirp.sync(getPath(filePath))
+                fs.writeFileSync(filePath, fileSource)
             }
 
-            // write entrypoint files to the platformBatchDir, add them to
-            // webpackConfig's entry option.
+            // module.js files are entrypoints.
             else if (fileName.match(/module\.js$/g)) {
 
-                // Write the module source to the platformBatchDir and list it
-                // in webpackConfig's entry option.
+                // write entrypoint files to the platformBatchDir, add them to
+                // webpackConfig's entry option.
                 //
                 // The Webpack entry path is relative to the platformBatchDir, where
                 // webpack will be running from, so the period is needed (we
