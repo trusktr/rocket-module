@@ -23,9 +23,9 @@ Package.registerBuildPlugin({
     sources: ['plugin/plugin.js'],
     npmDependencies: {
         'lodash': '3.8.0',
-        'glob': '5.0.5',
-        'fs-extra': '0.18.4',
-        'async': '1.2.0',
+        //'glob': '5.0.5',
+        //'fs-extra': '0.18.4',
+        //'async': '1.2.0',
         'regexr': '1.1.1',
         'mkdirp': '0.5.1',
         'npm': '3.2.0',

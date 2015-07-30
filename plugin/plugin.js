@@ -13,9 +13,9 @@ const os                    = Npm.require('os')
 
 // npm modules
 const _                     = Npm.require('lodash')
-const glob                  = Npm.require('glob')
-const fse                   = Npm.require('fs-extra')
-const async                 = Npm.require('async')
+//const glob                  = Npm.require('glob')
+//const fse                   = Npm.require('fs-extra')
+//const async                 = Npm.require('async')
 const regexr                = Npm.require('regexr')
 const mkdirp                = Npm.require('mkdirp')
 const npm                   = Npm.require('npm')
