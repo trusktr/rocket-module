@@ -20,7 +20,6 @@ const regexr                = Npm.require('regexr')
 const mkdirp                = Npm.require('mkdirp')
 const npm                   = Npm.require('npm')
 const shell                 = Npm.require('shelljs')
-const semver                = Npm.require('semver')
 
 // Meteor package imports
 const webpack               = Package['rocket:webpack'].Webpack
@@ -333,7 +332,7 @@ class RocketModuleCompiler {
             // Files an issue on Webpack at https://github.com/webpack/webpack/issues/1296
             let compileErrors
             let webpackCompiler = webpack(webpackConfig)
-            let webpackResult = Meteor.wrapAsync((callback) =>
+            Meteor.wrapAsync((callback) =>
                 webpackCompiler.run((error, stats) => {
                     if (error) throw new Error(error)
 

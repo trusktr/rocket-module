@@ -30,7 +30,6 @@ Package.registerBuildPlugin({
         'mkdirp': '0.5.1',
         'npm': '3.2.0',
         'shelljs': '0.5.1',
-        'semver': '5.0.1'
     }
 })
 
