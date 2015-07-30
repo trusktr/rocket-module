@@ -259,10 +259,9 @@ class RocketModuleCompiler {
             let savedLogFunction = console.log
             console.log = function() {} // silence npm output.
             Meteor.wrapAsync((callback) => {
-                npm.load({ prefix: npmContainerDirectory, loglevel: 'silent' }, callback)
-            })()
-            Meteor.wrapAsync((callback) => {
-                npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
+                npm.load({ prefix: npmContainerDirectory, loglevel: 'silent' }, function() {
+                    npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
+                })
             })()
             console.log = savedLogFunction
         }
@@ -285,7 +284,7 @@ class RocketModuleCompiler {
          * @param {Array.string} args An array of arguments to pass to npm.
          * They get concatenated together.
          *
-         * XXX: Use child_process.spawn?
+         * XXX: Use child_process.spawnSync?
          */
         function npmCommand(...args) {
             args = _.reduce(args, function(result, arg) {
