@@ -207,11 +207,11 @@ class RocketModuleCompiler {
                 mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
             }
 
-            // All .js files except module.js files can be required from
-            // module.js entry point files.
+            // All .js files except entry.js files can be required from
+            // entry.js entrypoint files.
             if (fileName.match(/\.js$/g)
                 && !(fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module')
-                && !fileName.match(/module\.js$/g)) {
+                && !isEntryPoint(fileName)) {
 
                 // write non-entrypoint files to the platformBatchDir
                 let filePath = path.resolve(batchDirPackagePath, fileName)
@@ -219,8 +219,8 @@ class RocketModuleCompiler {
                 fs.writeFileSync(filePath, fileSource)
             }
 
-            // module.js files are entrypoints.
-            else if (fileName.match(/module\.js$/g)) {
+            // entry.js files are entrypoints.
+            else if (isEntryPoint(fileName)) {
 
                 // write entrypoint files to the platformBatchDir, add them to
                 // webpackConfig's entry option.
@@ -389,7 +389,7 @@ class RocketModuleCompiler {
                     builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
             }
-            else if (fileName.match(/module\.js$/g)) {
+            else if (isEntryPoint(fileName)) {
                 builtFileSource = fs.readFileSync(batchDirBuiltFilePath).toString()
 
                 // add the RocketModule symbol to the entry points so that they
@@ -480,6 +480,10 @@ function fileInfo(inputFile) {
         package, fileName, isopackName, packageFileName, fileSource,
         extension, platform
     }
+}
+
+function isEntryPoint(fileName) {
+    return !!fileName.match(/(^entry\.js$)|(\.entry\.js$)/g)
 }
 
 function isWhitelistedWebpackError(error) {
