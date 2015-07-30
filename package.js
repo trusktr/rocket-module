@@ -14,7 +14,7 @@ Package.registerBuildPlugin({
     name: 'rocket:module',
     use: [
         'meteor',
-        'rocket:webpack@1.9.10',
+        'rocket:webpack@1.10.5',
         'rocket:build-tools@2.1.4',
         'ecmascript@0.1.3-plugins.0'
     ],
