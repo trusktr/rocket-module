@@ -106,9 +106,7 @@ class RocketModuleCompiler {
         // the initial webpack configuration object.
         let webpackConfig = {
             entry: {
-                // f.e.:
-                //'username_packagename/one/one': './packages/username_packagename/one/one',
-                //'username_packagename/two/two': './packages/username_packagename/two/two',
+                // f.e.: 'username_packagename/one/one': './packages/username_packagename/one/one',
             },
             output: {
                 path: path.resolve(platformBatchDir, './built'),
@@ -117,38 +115,29 @@ class RocketModuleCompiler {
             plugins: [ new webpack.optimize.CommonsChunkPlugin('shared-modules.js') ],
             resolve: {
                 extensions: [
-                    // defaults
-                    '', '.webpack.js', '.web.js', '.js',
-
-                    //custom
-                    '.jsx', '.css'
+                    '', '.webpack.js', '.web.js', '.js', // defaults
+                    '.jsx', '.css' //custom
                 ],
-                fallback: [
-                    // f.e.:
-                    //path.resolve('./node_modules/username_packagename/node_modules'),
-                    //path.resolve('./node_modules/username_packagename/node_modules')
-                    './node_modules'
-                ]
+                root: [ path.resolve(platformBatchDir, './node_modules') ]
             },
             resolveLoader: {
-                fallback: [
-                    /* f.e., same as resolve, but for loaders. */
-                    './node_modules'
-                ]
+                root: [ path.resolve(platformBatchDir, './node_modules') ]
             },
             module: {
                 loaders: [
+                    // Support for ES6 modules and the latest ES syntax.
+                    { test: /\.js$/,  loader: 'babel', exclude: /node_modules/, query: { blacklist: ['react'] } },
+
+                    // jsx files.
+                    { test: /\.jsx$/, loader: 'babel', exclude: /node_modules/ },
+
                     // For loading CSS files.
                     { test: /\.css$/, loader: 'style!css' },
 
-                    // Support for ES6 modules and the latest ES syntax.
-                    { test: /\.js$/, loader: 'babel', exclude: /node_modules/ },
-
                     // glsl files.
-                    { test: /\.glsl$/, loader: 'glslify!raw' },
-
-                    // jsx files.
-                    { test: /\.jsx$/, loader: 'babel' },
+                    //{ test: /\.glsl$/, loader: 'glslify!raw' }
+                    { test: /\.(glsl|frag|vert)$/, loader: 'raw' },
+                    { test: /\.(glsl|frag|vert)$/, loader: 'glslify' }
                 ]
             }
         }
@@ -347,11 +336,6 @@ class RocketModuleCompiler {
             let webpackCompiler = webpack(webpackConfig)
             let webpackResult = Meteor.wrapAsync((callback) =>
                 webpackCompiler.run((error, stats) => {
-
-                    // TODO: Meteor doesn't catch this error (if there's an
-                    // error running the Webpack compiler).  It would be nice
-                    // to put Meteor into an error state, showing this error,
-                    // so the user can fix what's broken here.
                     if (error) throw new Error(error)
 
                     let errors = stats.toJson().errors
