@@ -15,8 +15,7 @@ meteor add rocket:module
 Roadmap/tasks until first release
 ---------------------------------
 
-These steps are mostly in the order that they'll be developed. *Semver rules won't
-apply until version 1.0.0.*
+These steps are mostly in the order that they'll be developed. Semver rules apply starting from v0.2.0.
 
 ### v0.2.0 (first usable version)
 - [x] Register a new compiler with Plugin.registerCompiler.
@@ -24,14 +23,16 @@ apply until version 1.0.0.*
       thus eliminating the two previous month's worth of work. (:
 
 ### v1.0.0
-- [ ] Switch to npm CLI instead of programmatic usage to see if that fixes
+- [x] Switch to npm CLI instead of programmatic usage to see if that fixes
       random NPM bugs that don't happen when I try from CLI.
-- [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
-      css, less, sass, and stylus.
 - [ ] Use Webpack's caching feature so that only
       modified files are rebuilt. Make sure to write the
       replacement of `window` by `RocketModule` to the built
       files if Webpack's cache reads the built files.
+- [ ] Ensure that files that aren't handled by Webpack (for applications) are
+      given back to Meteor so they can be executed.
+- [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
+      css, less, sass, and stylus.
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
