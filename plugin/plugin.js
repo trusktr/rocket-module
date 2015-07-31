@@ -10,6 +10,7 @@
 const path                  = Npm.require('path')
 const fs                    = Npm.require('fs')
 const os                    = Npm.require('os')
+const util                  = Npm.require('util')
 
 // npm modules
 const _                     = Npm.require('lodash')
@@ -37,6 +38,7 @@ const {
     toIsopackName,
     toPackageName,
     getPath,
+    getFileName,
     getMeteorPath,
     getMeteorNpmRequireRoot,
     getCommonAncestorPath,
@@ -336,6 +338,9 @@ class RocketModuleCompiler {
                 webpackCompiler.run((error, stats) => {
                     if (error) throw new Error(error)
 
+                    //console.log(util.inspect(stats, false, null))
+                    //process.exit()
+
                     let errors = stats.toJson().errors
                     errors = _.filter(errors, function(error) {
                         return !isWhitelistedWebpackError(error)
@@ -483,7 +488,7 @@ function fileInfo(inputFile) {
 }
 
 function isEntryPoint(fileName) {
-    return !!fileName.match(/(^entry\.js$)|(\.entry\.js$)/g)
+    return !!getFileName(fileName).match(/(^entry\.js$)|(\.entry\.js$)/g)
 }
 
 function isWhitelistedWebpackError(error) {
@@ -506,6 +511,6 @@ function isWhitelistedWebpackError(error) {
     Plugin.registerCompiler({
         // TODO: Add css, typescript, coffeescript, etc.
         extensions: [ 'js' ],
-        filenames: [ 'npm.json' ]
+        filenames: [ 'npm.json', 'entry.js' ]
     }, () => new RocketModuleCompiler)
 }

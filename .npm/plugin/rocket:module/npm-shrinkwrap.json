@@ -342,11 +342,11 @@
         "concat-map": {
           "version": "0.0.1"
         },
-        "cryptiles": {
-          "version": "2.0.4"
-        },
         "core-util-is": {
           "version": "1.0.1"
+        },
+        "cryptiles": {
+          "version": "2.0.4"
         },
         "ctype": {
           "version": "0.5.3"
@@ -384,11 +384,11 @@
         "gauge": {
           "version": "1.2.2"
         },
-        "generate-object-property": {
-          "version": "1.2.0"
-        },
         "generate-function": {
           "version": "2.0.0"
+        },
+        "generate-object-property": {
+          "version": "1.2.0"
         },
         "graceful-readlink": {
           "version": "1.0.1"
