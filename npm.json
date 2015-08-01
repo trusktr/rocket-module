@@ -1,6 +1,5 @@
 {
   "babel-loader": "^5.0.0",
-  "glslify": "^2.2.1",
   "glslify-loader": "^1.0.2",
   "raw-loader": "^0.5.1",
   "css-loader": "0.12.0",
