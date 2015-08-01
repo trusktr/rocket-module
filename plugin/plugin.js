@@ -179,10 +179,10 @@ class RocketModuleCompiler {
         {
         let currentPackage = null
         _.each(inputFiles, (inputFile) => {
-            let { package, fileName, isopackName, packageFileName, fileSource }
+            let { package, fileName, isopackName, npmPackageName, packageFileName, fileSource }
                 = fileInfo(inputFile)
 
-            let batchDirPackagePath = path.resolve(platformBatchDir, 'packages', isopackName)
+            let batchDirPackagePath = path.resolve(platformBatchDir, 'packages', npmPackageName)
 
             // make the package path, and other things, in the batch dir
             mkdirp.sync(batchDirPackagePath)
@@ -197,7 +197,7 @@ class RocketModuleCompiler {
                     npmDependencies[isopackName] = {}
 
                 fs.writeFileSync(path.resolve(batchDirPackagePath, 'package.json'), `{
-                    "name": "${isopackName}",
+                    "name": "${npmPackageName}",
                     "version": "0.0.0",
                     "dependencies": ${
                         JSON.stringify(npmDependencies[isopackName])
@@ -206,7 +206,7 @@ class RocketModuleCompiler {
 
                 // Specify the current package as a dependency in the main
                 // package.json
-                mainPackageDotJsonData.dependencies[isopackName] = `file:./packages/${isopackName}`
+                mainPackageDotJsonData.dependencies[npmPackageName] = `file:./packages/${npmPackageName}`
             }
 
             // All .js files except entry.js files can be required from
@@ -369,9 +369,9 @@ class RocketModuleCompiler {
          * via the addJavaScript method.
          */
         _.each(inputFiles, (inputFile) => {
-            let { fileName, package, isopackName } = fileInfo(inputFile)
+            let { fileName, package, npmPackageName } = fileInfo(inputFile)
 
-            let batchDirBuiltPackagePath = path.resolve(platformBatchDir, 'built', isopackName)
+            let batchDirBuiltPackagePath = path.resolve(platformBatchDir, 'built', npmPackageName)
             let batchDirBuiltFilePath = path.resolve(batchDirBuiltPackagePath, fileName)
 
             let builtFileSource
@@ -472,9 +472,10 @@ function fileInfo(inputFile) {
     // Note: I was using a name like __app__ instead of rocket_module__app
     // but a name with leading underscores causes npm to crash
     // (https://github.com/npm/npm/issues/9071).
-    let isopackName = package.name ? toIsopackName(package.name) : 'rocket_module__app'
+    let isopackName = package.name ? toIsopackName(package.name) : '_app'
+    let npmPackageName = 'rocket_module__'+isopackName
 
-    let packageFileName = path.join(isopackName, fileName)
+    let packageFileName = path.join(npmPackageName, fileName)
 
     let fileSource = inputResource.data.toString()
     let extension = inputResource.extension
@@ -482,8 +483,8 @@ function fileInfo(inputFile) {
     let platform = unibuild.arch
 
     return {
-        package, fileName, isopackName, packageFileName, fileSource,
-        extension, platform
+        package, fileName, isopackName, npmPackageName, packageFileName,
+        fileSource, extension, platform
     }
 }
 
