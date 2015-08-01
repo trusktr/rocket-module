@@ -25,12 +25,14 @@ These steps are mostly in the order that they'll be developed. Semver rules appl
 ### v1.0.0
 - [x] Switch to npm CLI instead of programmatic usage to see if that fixes
       random NPM bugs that don't happen when I try from CLI.
-- [ ] Use Webpack's caching feature so that only
-      modified files are rebuilt. Make sure to write the
-      replacement of `window` by `RocketModule` to the built
-      files if Webpack's cache reads the built files.
-- [ ] Ensure that files that aren't handled by Webpack (for applications) are
+- [x] Ensure that files that aren't handled by Webpack (for applications) are
       given back to Meteor so they can be executed.
+- [ ] Add sub-node_modules folders to the resolve/resolveLoader root option if
+      there are any (it happens with dependency forks, but most of the time the
+      first level node_modules folder will be flat).
+- [ ] Use Webpack's caching feature so that only modified files are rebuilt.
+      Make sure to write the replacement of `window` by `RocketModule` to the built
+      files if Webpack's cache reads the built files.
 - [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
       css, less, sass, and stylus.
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
@@ -47,10 +49,3 @@ These steps are mostly in the order that they'll be developed. Semver rules appl
   - [ ] Describe how to use npm dependencies in an app directly, using a spare
         local package (basically like what meteorhacks:npm does).
 - [ ] Celebrate! Wooooo!
-
-### v1.x.x (in order of importance)
-- [ ] Support npm dependencies for apps that already use meteorhacks:npm.
-  - [ ] Detect meteorhacks:npm's local "npm-container" package and install it's
-        npm dependencies alongside those of the packages dependent rocket:module.
-- [x] Code split for each architecture instead of all at once (each
-      architecture may possibly have different shared modules).

@@ -2,7 +2,7 @@ Package.describe({
     name: 'rocket:module',
     version: '0.5.1',
     // Brief, one-line summary of the package.
-    summary: 'ES6 Modules for Meteor. (And CJS/AMD too!)',
+    summary: 'ES6/CJS/AMD modules, JSX/CSS/GLSL file loading, cross-package NPM dependencies...',
     // URL to the Git repository containing the source code for this package.
     git: 'https://github.com/meteor-rocket/module.git',
     // By default, Meteor will default to using README.md for documentation.

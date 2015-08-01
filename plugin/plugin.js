@@ -42,7 +42,8 @@ const {
     getMeteorPath,
     getMeteorNpmRequireRoot,
     getCommonAncestorPath,
-    requireFromMeteor
+    requireFromMeteor,
+    indexOfObjectWithKeyValue
 } = BuildTools
 
 // modules from Meteor.
@@ -179,8 +180,10 @@ class RocketModuleCompiler {
         {
         let currentPackage = null
         _.each(inputFiles, (inputFile) => {
-            let { package, fileName, isopackName, npmPackageName, packageFileName, fileSource }
-                = fileInfo(inputFile)
+            let {
+                package, fileName, isopackName, npmPackageName,
+                relativePackageFileName, isopackPackageFileName, fileSource
+            } = fileInfo(inputFile)
 
             let batchDirPackagePath = path.resolve(platformBatchDir, 'packages', npmPackageName)
 
@@ -233,11 +236,11 @@ class RocketModuleCompiler {
                 let filePath = path.resolve(batchDirPackagePath, fileName)
                 mkdirp.sync(getPath(filePath))
                 fs.writeFileSync(filePath, fileSource)
-                webpackConfig.entry[packageFileName] = '.' +path.sep+ 'packages' +path.sep+ packageFileName
+                webpackConfig.entry[isopackPackageFileName] = relativePackageFileName
             }
 
             // Don't write the empty shared-modules file to the batchdir. We'll
-            // set it source with the Webpack entry chunk after compilation.
+            // set its source to the Webpack entry chunk after compilation.
             else if (fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module') {
                 // do nothing.
             }
@@ -292,7 +295,7 @@ class RocketModuleCompiler {
                 return `${result} ${arg}`
             }, '')
 
-            shell.exec(`${npmCommand.bin || 'npm'} ${args}`)
+            return shell.exec(`${npmCommand.bin || 'npm'} ${args}`)
         }
         npmCommand.bin = null
 
@@ -326,6 +329,7 @@ class RocketModuleCompiler {
         /*
          * Run the Webpack compiler synchronously.
          */
+        let webpackCompilerStats
         {
             let oldCwd = process.cwd()
             process.chdir(platformBatchDir)
@@ -339,7 +343,8 @@ class RocketModuleCompiler {
                     if (error) throw new Error(error)
 
                     //console.log(util.inspect(stats, false, null))
-                    //process.exit()
+
+                    webpackCompilerStats = stats.toJson()
 
                     let errors = stats.toJson().errors
                     errors = _.filter(errors, function(error) {
@@ -369,14 +374,13 @@ class RocketModuleCompiler {
          * via the addJavaScript method.
          */
         _.each(inputFiles, (inputFile) => {
-            let { fileName, package, npmPackageName } = fileInfo(inputFile)
+            let { fileName, package, isopackPackageFileName, relativePackageFileName, fileSource }
+                = fileInfo(inputFile)
 
-            let batchDirBuiltPackagePath = path.resolve(platformBatchDir, 'built', npmPackageName)
-            let batchDirBuiltFilePath = path.resolve(batchDirBuiltPackagePath, fileName)
+            let batchDirBuiltFilePath = path.resolve(platformBatchDir, 'built', isopackPackageFileName)
 
             let builtFileSource
 
-            // TODO TODO TODO TODO handle other files.
             if (fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module') {
                 builtFileSource = fs.readFileSync(
                     path.resolve(platformBatchDir, 'built', 'shared-modules.js')
@@ -393,6 +397,7 @@ class RocketModuleCompiler {
                     builtFileSource = 'RocketModule = {};\n'+builtFileSource
                     builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
+                addSource()
             }
             else if (isEntryPoint(fileName)) {
                 builtFileSource = fs.readFileSync(batchDirBuiltFilePath).toString()
@@ -418,21 +423,28 @@ class RocketModuleCompiler {
                         ${builtFileSource}
                     `)
                 }
+                addSource()
+            }
+            else {
+                let modules = webpackCompilerStats.modules
+
+                // if the file wasn't handled by Webpack, we just give it's
+                // original source back to Meteor for Meteor to handle.
+                if (indexOfObjectWithKeyValue(modules, 'name', relativePackageFileName) < 0) {
+                    builtFileSource = fileSource
+                    addSource()
+                }
             }
 
-            // finally add the sources back!
-            inputFile.addJavaScript({
-                path: fileName,
-
-                // empty strings for files other than entrypoints and
-                // shared-modules.js (since they are compiled into the
-                // entrypoints, with shared modules put into
-                // shared-modules.js).
-                data: builtFileSource || '',
-
-                sourcePath: [package.name, fileName].join('/'),
-                sourceMap: null // TODO TODO TODO
-            })
+            function addSource() {
+                // finally add the sources back!
+                inputFile.addJavaScript({
+                    path: fileName,
+                    data: builtFileSource || '',
+                    sourcePath: [package.name, fileName].join('/'),
+                    sourceMap: null // TODO TODO TODO
+                })
+            }
         })
     }
 }
@@ -475,7 +487,9 @@ function fileInfo(inputFile) {
     let isopackName = package.name ? toIsopackName(package.name) : '_app'
     let npmPackageName = 'rocket_module__'+isopackName
 
-    let packageFileName = path.join(npmPackageName, fileName)
+    let npmPackageFileName = path.join(npmPackageName, fileName)
+    let isopackPackageFileName = path.join(isopackName, fileName)
+    let relativePackageFileName = '.' +path.sep+ 'packages' +path.sep+ npmPackageFileName
 
     let fileSource = inputResource.data.toString()
     let extension = inputResource.extension
@@ -483,8 +497,9 @@ function fileInfo(inputFile) {
     let platform = unibuild.arch
 
     return {
-        package, fileName, isopackName, npmPackageName, packageFileName,
-        fileSource, extension, platform
+        package, fileName, isopackName, npmPackageName, npmPackageFileName,
+        isopackPackageFileName, relativePackageFileName, fileSource, extension,
+        platform
     }
 }
 
