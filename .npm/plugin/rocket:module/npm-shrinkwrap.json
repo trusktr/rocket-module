@@ -522,14 +522,14 @@
         "lodash.restparam": {
           "version": "3.6.1"
         },
+        "mime-db": {
+          "version": "1.15.0"
+        },
         "lru-cache": {
           "version": "2.6.5"
         },
         "mime-types": {
           "version": "2.1.3"
-        },
-        "mime-db": {
-          "version": "1.15.0"
         },
         "minimatch": {
           "version": "2.0.10"
