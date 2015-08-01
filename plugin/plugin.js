@@ -302,8 +302,13 @@ class RocketModuleCompiler {
         /*
          * Install all the packages and their npm dependencies in the platformBatchDir.
          */
-        npmCommand.bin = path.resolve(npmContainerDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js')
-        npmCommand(`--prefix ${platformBatchDir} --silent install ${platformBatchDir}`)
+        {
+            npmCommand.bin = path.resolve(npmContainerDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js')
+            let {code, output} = npmCommand(`--prefix ${platformBatchDir} install ${platformBatchDir}`)
+
+            if (code !== 0)
+                throw new Error('Error: Unable to install NPM dependencies. Check previous output for details.')
+        }
 
         // list each node_modules folder (those installed in the previous
         // step) in webpackConfig's resolve.fallback option.
