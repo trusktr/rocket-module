@@ -22,6 +22,8 @@ const mkdirp                = Npm.require('mkdirp')
 const npm                   = Npm.require('npm')
 const shell                 = Npm.require('shelljs')
 
+const r = regexr
+
 // Meteor package imports
 const webpack               = Package['rocket:webpack'].Webpack
 const BuildTools            = Package['rocket:build-tools'].BuildTools
@@ -37,8 +39,6 @@ const {
     getPackageInfo,
     toIsopackName,
     toPackageName,
-    getPath,
-    getFileName,
     getMeteorPath,
     getMeteorNpmRequireRoot,
     getCommonAncestorPath,
@@ -128,7 +128,7 @@ class RocketModuleCompiler {
             module: {
                 loaders: [
                     // Support for ES6 modules and the latest ES syntax.
-                    { test: /\.js$/,  loader: 'babel', exclude: /node_modules/, query: { blacklist: ['react'] } },
+                    { test: /\.js$/,  loader: 'babel', exclude: /node_modules/ },
 
                     // jsx files.
                     { test: /\.jsx$/, loader: 'babel', exclude: /node_modules/ },
@@ -220,7 +220,7 @@ class RocketModuleCompiler {
 
                 // write non-entrypoint files to the platformBatchDir
                 let filePath = path.resolve(batchDirPackagePath, fileName)
-                mkdirp.sync(getPath(filePath))
+                mkdirp.sync(process.dirname(filePath))
                 fs.writeFileSync(filePath, fileSource)
             }
 
@@ -234,7 +234,7 @@ class RocketModuleCompiler {
                 // webpack will be running from, so the period is needed (we
                 // can't use path.join because it removes the leading period):
                 let filePath = path.resolve(batchDirPackagePath, fileName)
-                mkdirp.sync(getPath(filePath))
+                mkdirp.sync(process.dirname(filePath))
                 fs.writeFileSync(filePath, fileSource)
                 webpackConfig.entry[isopackPackageFileName] = relativePackageFileName
             }
@@ -433,11 +433,18 @@ class RocketModuleCompiler {
             else {
                 let modules = webpackCompilerStats.modules
 
-                // if the file wasn't handled by Webpack, we just give it's
-                // original source back to Meteor for Meteor to handle.
+                // if the file wasn't handled by Webpack
                 if (indexOfObjectWithKeyValue(modules, 'name', relativePackageFileName) < 0) {
-                    builtFileSource = fileSource
-                    addSource()
+
+                    // if the file ends with {client,server}.js and belongs to
+                    // the current platform, or the file is not a
+                    // {client,server}.js file.
+                    if (fileBelongsToPlatform(platform, fileName)) {
+
+                        // give it's original source back to Meteor for Meteor to handle.
+                        builtFileSource = fileSource
+                        addSource()
+                    }
                 }
             }
 
@@ -508,8 +515,28 @@ function fileInfo(inputFile) {
     }
 }
 
-function isEntryPoint(fileName) {
-    return !!getFileName(fileName).match(/(^entry\.js$)|(\.entry\.js$)/g)
+function isEntryPoint(fullFileName) {
+    return !!path.basename(fullFileName).match(/(^|\.)entry\.js$/g)
+}
+
+function isClientServerFile(fullFileName) {
+    let basename = path.basename(fullFileName)
+    return basename.match(/(^|\.)client\.js$/g) || basename.match(/(^|\.)server\.js$/g)
+}
+
+function fileBelongsToPlatform(platform, fullFileName) {
+    let itBelongs = false
+    let basename = path.basename(fullFileName)
+
+    if (
+        platform.match(/^web\./g) && basename.match(/(^|\.)client\.js$/g)
+        || platform.match(/^os\./g) && basename.match(/(^|\.)server\.js$/g)
+        || !isClientServerFile(fullFileName)
+    ) {
+        itBelongs = true
+    }
+
+    return itBelongs
 }
 
 function isWhitelistedWebpackError(error) {
