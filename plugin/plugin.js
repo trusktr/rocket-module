@@ -220,7 +220,7 @@ class RocketModuleCompiler {
 
                 // write non-entrypoint files to the platformBatchDir
                 let filePath = path.resolve(batchDirPackagePath, fileName)
-                mkdirp.sync(process.dirname(filePath))
+                mkdirp.sync(path.dirname(filePath))
                 fs.writeFileSync(filePath, fileSource)
             }
 
@@ -234,7 +234,7 @@ class RocketModuleCompiler {
                 // webpack will be running from, so the period is needed (we
                 // can't use path.join because it removes the leading period):
                 let filePath = path.resolve(batchDirPackagePath, fileName)
-                mkdirp.sync(process.dirname(filePath))
+                mkdirp.sync(path.dirname(filePath))
                 fs.writeFileSync(filePath, fileSource)
                 webpackConfig.entry[isopackPackageFileName] = relativePackageFileName
             }
