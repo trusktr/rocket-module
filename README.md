@@ -3,7 +3,10 @@ rocket:module
 
 ES6 Modules for Meteor. (And CJS/AMD too!)
 
-**NOTE: This isn't ready yet! It'll be ready at v1.0.0., although it is now in a usable state if you want to help test it out. :)**
+**NOTE: This isn't ready yet! It'll be ready at v1.0.0. It's in a usable state
+if you'd like to provide early feedback, but note that the [usage
+instructions](https://github.com/meteor-rocket/module-example-app) might change
+a little before 1.0.0. :)**
 
 Installation
 ------------
@@ -15,7 +18,8 @@ meteor add rocket:module
 Roadmap/tasks until first release
 ---------------------------------
 
-These steps are mostly in the order that they'll be developed. Semver rules apply starting from v0.2.0.
+These steps are mostly in the order that they'll be developed. Semver rules
+apply starting from v0.2.0.
 
 ### v0.2.0 (first usable version)
 - [x] Register a new compiler with Plugin.registerCompiler.
