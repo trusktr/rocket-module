@@ -46,10 +46,18 @@ apply starting from v0.2.0.
 - [ ] Use `npm outdated` to detect if we need to run `npm update`. We'll need
       to run the update command when dependencies listed in npm.json files have
       changed in order to update the local packages.
+- [ ] Make a `enforceModules` option that, when true, doesn't hand files unused
+      by Webpack back to Meteor. This makes it so that files are only in your
+      project if they are required or imported into another file, otherwise their
+      code is completely ignored.
+- [ ] Don't hand back files in a `modules` folder. This can be used similarly
+      to the `enforceModules` option to tell rocket:module that these files are
+      meant only to be required or imported into other files, and if they are not,
+      they won't be handed back to Meteor.
 - [ ] Test in Windows.
 - [ ] Report file-specific Webpack errors using corresponding InputFile.error() calls.
 - [ ] Finish commented TODOs that are left in rocket:module.
 - [ ] Update README with usage and configuration documentation.
-  - [ ] Describe how to use npm dependencies in an app directly, using a spare
-        local package (basically like what meteorhacks:npm does).
+  - [ ] Describe how to use npm dependencies.
+  - [ ] Describe client/server file naming.
 - [ ] Celebrate! Wooooo!
