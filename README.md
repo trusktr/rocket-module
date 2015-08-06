@@ -50,7 +50,7 @@ apply starting from v0.2.0.
       by Webpack back to Meteor. This makes it so that files are only in your
       project if they are required or imported into another file, otherwise their
       code is completely ignored.
-- [ ] Don't hand back files in a `modules` folder. This can be used similarly
+- [x] Don't hand back files in a `modules` folder. This can be used similarly
       to the `enforceModules` option to tell rocket:module that these files are
       meant only to be required or imported into other files, and if they are not,
       they won't be handed back to Meteor.

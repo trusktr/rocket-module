@@ -128,10 +128,12 @@ class RocketModuleCompiler {
             module: {
                 loaders: [
                     // Support for ES6 modules and the latest ES syntax.
-                    { test: /\.js$/,  loader: 'babel', exclude: /node_modules/ },
+                    { test: /\.jsx?$/,  loader: 'babel', exclude: /node_modules/ },
 
-                    // jsx files.
-                    { test: /\.jsx$/, loader: 'babel', exclude: /node_modules/ },
+                    // TODO: We still have to tell Meteor rocket:module will
+                    // handle the following file types, but for now the
+                    // following works when importing such files from NPM
+                    // modules.
 
                     // For loading CSS files.
                     { test: /\.css$/, loader: 'style!css' },
@@ -439,7 +441,7 @@ class RocketModuleCompiler {
                     // if the file ends with {client,server}.js and belongs to
                     // the current platform, or the file is not a
                     // {client,server}.js file.
-                    if (fileBelongsToPlatform(platform, fileName)) {
+                    if (fileBelongsToPlatform(platform, fileName) && !fileIsModule(fileName)) {
 
                         // give it's original source back to Meteor for Meteor to handle.
                         builtFileSource = fileSource
@@ -515,30 +517,6 @@ function fileInfo(inputFile) {
     }
 }
 
-function isEntryPoint(fullFileName) {
-    return !!path.basename(fullFileName).match(/(^|\.)entry\.js$/g)
-}
-
-function isClientServerFile(fullFileName) {
-    let basename = path.basename(fullFileName)
-    return basename.match(/(^|\.)client\.js$/g) || basename.match(/(^|\.)server\.js$/g)
-}
-
-function fileBelongsToPlatform(platform, fullFileName) {
-    let itBelongs = false
-    let basename = path.basename(fullFileName)
-
-    if (
-        platform.match(/^web\./g) && basename.match(/(^|\.)client\.js$/g)
-        || platform.match(/^os\./g) && basename.match(/(^|\.)server\.js$/g)
-        || !isClientServerFile(fullFileName)
-    ) {
-        itBelongs = true
-    }
-
-    return itBelongs
-}
-
 function isWhitelistedWebpackError(error) {
     let r = regexr
     let whitelistError = false
@@ -554,11 +532,67 @@ function isWhitelistedWebpackError(error) {
     return whitelistError
 }
 
+function isEntryPoint(fullFileName) {
+    let basename = path.basename(fullFileName)
+    return !!basename.match(/(^|\.)entry\.jsx?$/g)
+}
+
+// detects if a file ends with the extensions (or is entirely named)
+// {server,client}.js or {server,client}.entry.js
+function isClientServerFile(fullFileName) {
+    let basename = path.basename(fullFileName)
+    return basename.match(/(^|\.)(client|server)(\.entry)?\.jsx?$/g)
+}
+
+function fileIsModule(fullFileName) {
+    let dirname = path.dirname(fullFileName)
+    let enforceModules = false // <-- TODO: let user configure this project-wide setting.
+    return enforceModules || !!_.detect(dirname.split(path.sep), pathPart => pathPart.match(/modules/g))
+}
+
+function fileBelongsToPlatform(platform, fullFileName) {
+    let itBelongs = false
+    let basename = path.basename(fullFileName)
+    let dirname = path.dirname(fullFileName)
+
+    let side = platform.match(/^web\./g) ? 'client' : 'server'
+    let otherSide = side === 'client' ? 'server' : 'client'
+
+    if (
+        basename.match(r`/(^|\.)${side}(\.entry)?\.jsx?$/g`)
+        // if the file doesn't have "client" or "server" in the name,
+        || !isClientServerFile(fullFileName) && (
+            // and if it is in a "server"/"client" folder (the one matching the current platform)
+            _.detect(dirname.split(path.sep), pathPart => pathPart.match(r`/${side}/g`))
+            // or it's not in a "server"/"client" folder at all.
+            || !_.detect(dirname.split(path.sep), pathPart => pathPart.match(r`/${side}/g`))
+                && !_.detect(dirname.split(path.sep), pathPart => pathPart.match(r`/${otherSide}/g`))
+        )
+    ) {
+        // then it belongs
+        itBelongs = true
+    }
+
+    return itBelongs
+}
+
 // entrypoint
 {
     Plugin.registerCompiler({
         // TODO: Add css, typescript, coffeescript, etc.
-        extensions: [ 'js' ],
-        filenames: [ 'npm.json', 'entry.js' ]
+        extensions: [
+            'js', 'jsx',
+
+            'entry.js', 'entry.jsx',
+            'client.entry.js', 'client.entry.jsx',
+            'server.entry.js', 'server.entry.jsx'
+        ],
+        filenames: [
+            'npm.json',
+
+            'entry.js', 'entry.jsx',
+            'client.entry.js', 'client.entry.jsx',
+            'server.entry.js', 'server.entry.jsx'
+        ]
     }, () => new RocketModuleCompiler)
 }
