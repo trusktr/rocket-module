@@ -37,6 +37,10 @@ apply starting from v0.2.0.
 - [ ] Use Webpack's caching feature so that only modified files are rebuilt.
       Make sure to write the replacement of `window` by `RocketModule` to the built
       files if Webpack's cache reads the built files.
+  - [ ] Make sure that files that are no longer in the project are also not
+        present in rocket:module build cache.
+  - [ ] Does Meteor tell you which files have changed? If so, update only those
+        files on the disk, leaving other files unchanged.
 - [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
       css, less, sass, and stylus.
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
