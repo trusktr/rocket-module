@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.5.2',
+    version: '0.6.0',
     // Brief, one-line summary of the package.
     summary: 'ES6/CJS/AMD modules, JSX/CSS/GLSL file loading, cross-package NPM dependencies...',
     // URL to the Git repository containing the source code for this package.
