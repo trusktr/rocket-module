@@ -105,7 +105,9 @@ class RocketModuleCompiler {
         let platformBatchDir = path.resolve(rocketModuleCache, 'platform-builds', platform)
         if (!fs.existsSync(platformBatchDir)) mkdirp.sync(platformBatchDir)
 
-        // the initial webpack configuration object.
+        /*
+         * the initial webpack configuration object.
+         */
         let webpackConfig = {
             entry: {
                 // f.e.: 'username_packagename/one/one': './packages/username_packagename/one/one',
@@ -120,22 +122,33 @@ class RocketModuleCompiler {
                     '', '.webpack.js', '.web.js', '.js', // defaults
                     '.jsx', '.css' //custom
                 ],
-                root: [ path.resolve(platformBatchDir, './node_modules') ]
+                root: [ path.resolve(platformBatchDir, './node_modules') ],
+                alias: {}
             },
             resolveLoader: {
                 root: [ path.resolve(platformBatchDir, './node_modules') ]
             },
             module: {
                 loaders: [
+                    // temporary support for Famous/engine's glslify transform requirement.
+                    // TODO: Make rocket:module detect and apply browserify transforms.
+                    //{ test: /\.js$/, loader: 'transform/cacheable?glslify'},
+                    // dependencies for npm.json:
+                    //  "transform-loader": "^0.2.0",
+                    //  "glslify": "^2.0.0"
+
                     // Support for ES6 modules and the latest ES syntax.
                     { test: /\.jsx?$/,  loader: 'babel', exclude: /node_modules/ },
 
                     // TODO: We still have to tell Meteor rocket:module will
-                    // handle the following file types, but for now the
-                    // following works when importing such files from NPM
-                    // modules.
+                    // handle other file types besides JavaScript files, but
+                    // for now the following works when importing such files
+                    // from NPM modules.
 
                     // For loading CSS files.
+                    // XXX: Should we handle CSS files? This already works for
+                    // importing CSS files from NPM packages if needed, but
+                    // Meteor already compiles CSS files found elsewhere.
                     { test: /\.css$/, loader: 'style!css' },
 
                     // glsl files.
@@ -146,21 +159,41 @@ class RocketModuleCompiler {
             }
         }
 
-        let mainPackageDotJsonData = {
-            dependencies: {}
+        /*
+         * Get the app-level config from rocket-module.json file of the app and
+         * apply it to the webpack config. Ignore rocket-module.json files
+         * found in packages.
+         */
+        {
+        let rocketModuleConfigFile = _.filter(inputFiles, function(file) {
+            let { fileName, isopackName } = fileInfo(file)
+            return isopackName.match(/^_app$/g) && fileName.match(/^rocket-module\.json$/g)
+        })[0]
+        inputFiles = _.filter(inputFiles, function(file) {
+            let { fileName, isopackName } = fileInfo(file)
+            return !(isopackName.match(/^_app$/g) && fileName.match(/^rocket-module\.json$/g))
+        })
+        let { fileSource } = fileInfo(rocketModuleConfigFile)
+        let rocketModuleConfig = JSON.parse(fileSource)
+        webpackConfig.resolve.alias = rocketModuleConfig.aliases
         }
 
-        // extract the npm dependency files from the inputFiles
+
+        /*
+         * Extract the npm dependency files from the inputFiles.
+         */
         let dependencyFiles = _.filter(inputFiles, function(file) {
             let { fileName } = fileInfo(file)
-            return fileName.match(/npm\.json$/g)
+            return fileName.match(/^npm\.json$/g)
         })
         inputFiles = _.filter(inputFiles, function(file) {
             let { fileName } = fileInfo(file)
-            return !fileName.match(/npm\.json$/g)
+            return !fileName.match(/^npm\.json$/g)
         })
 
-        // Make an array of dependency objects, one per package.
+        /*
+         * Make an array of dependency objects, one per package.
+         */
         let npmDependencies = {}
         let jsonError = null
         _.each(dependencyFiles, function(file) {
@@ -180,6 +213,9 @@ class RocketModuleCompiler {
          * to the platformBatchDir to be handled by Webpack.
          */
         {
+        let mainPackageDotJsonData = {
+            dependencies: {}
+        }
         let currentPackage = null
         _.each(inputFiles, (inputFile) => {
             let {
@@ -248,11 +284,11 @@ class RocketModuleCompiler {
             }
             currentPackage = isopackName
         })
-        }
 
         // Write the main package.json file.
         let mainPackageDotJson = path.resolve(platformBatchDir, 'package.json')
         fs.writeFileSync(mainPackageDotJson, JSON.stringify(mainPackageDotJsonData))
+        }
 
         /*
          * Use npm to install npm locally for us to use via CLI. This is easier
@@ -589,6 +625,7 @@ function fileBelongsToPlatform(platform, fullFileName) {
         ],
         filenames: [
             'npm.json',
+            'rocket-module.json',
 
             'entry.js', 'entry.jsx',
             'client.entry.js', 'client.entry.jsx',

@@ -31,10 +31,10 @@ apply starting from v0.2.0.
       random NPM bugs that don't happen when I try from CLI.
 - [x] Ensure that files that aren't handled by Webpack (for applications) are
       given back to Meteor so they can be executed.
-- [ ] Let users specify rocket:module configs in rocket-module.json of the app.
-  - [ ] Allow an aliases config that works like that of Webpack's
-        resolve.alias config option.
-- [ ] Only read npm.json at the root level of a package or app, and same
+- [x] Let users specify rocket:module configs in rocket-module.json of the app.
+  - [x] Allow an `aliases` config option that works like that of Webpack's
+        `resolve.alias` config option.
+- [x] Only read npm.json at the root level of a package or app, and same
       with rocket-module.js of an app.
 - [ ] Add sub-node_modules folders to the resolve/resolveLoader root option if
       there are any (it happens with dependency forks, but most of the time the
@@ -70,3 +70,7 @@ apply starting from v0.2.0.
   - [ ] Describe how to use npm dependencies.
   - [ ] Describe client/server file naming.
 - [ ] Celebrate! Wooooo!
+
+### post v1.0.0
+
+- [ ] Add support for browserify transforms.
