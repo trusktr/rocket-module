@@ -173,9 +173,11 @@ class RocketModuleCompiler {
             let { fileName, isopackName } = fileInfo(file)
             return !(isopackName.match(/^_app$/g) && fileName.match(/^rocket-module\.json$/g))
         })
-        let { fileSource } = fileInfo(rocketModuleConfigFile)
-        let rocketModuleConfig = JSON.parse(fileSource)
-        webpackConfig.resolve.alias = rocketModuleConfig.aliases
+        if (rocketModuleConfigFile) {
+            let { fileSource } = fileInfo(rocketModuleConfigFile)
+            let rocketModuleConfig = JSON.parse(fileSource)
+            webpackConfig.resolve.alias = rocketModuleConfig.aliases
+        }
         }
 
 
