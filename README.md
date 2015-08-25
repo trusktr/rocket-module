@@ -36,9 +36,6 @@ apply starting from v0.2.0.
         `resolve.alias` config option.
 - [x] Only read npm.json at the root level of a package or app, and same
       with rocket-module.js of an app.
-- [ ] Add sub-node_modules folders to the resolve/resolveLoader root option if
-      there are any (it happens with dependency forks, but most of the time the
-      first level node_modules folder will be flat).
 - [ ] Use Webpack's caching feature so that only modified files are rebuilt.
       Make sure to write the replacement of `window` by `RocketModule` to the built
       files if Webpack's cache reads the built files.
@@ -46,8 +43,20 @@ apply starting from v0.2.0.
         present in rocket:module build cache.
   - [ ] Does Meteor tell you which files have changed? If so, update only those
         files on the disk, leaving other files unchanged.
-- [ ] Add common Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
+- [ ] Add sub-node_modules folders to the resolve/resolveLoader root option if
+      there are any (it happens with dependency forks, but most of the time the
+      first level node_modules folder will be flat).
+- [ ] Add useful Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
       css, less, sass, and stylus.
+  - [x] babel
+  - [ ] coffeescript
+  - [ ] typescript
+  - [x] jsx (via babel)
+  - [ ] glslify
+  - [ ] css
+  - [ ] less
+  - [ ] sass
+  - [ ] stylus
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
@@ -73,4 +82,5 @@ apply starting from v0.2.0.
 
 ### post v1.0.0
 
+- [ ] Install Webpack locally instead of using rocket:module, which will prevent architecture-specific builds of rocket:module.
 - [ ] Add support for browserify transforms.
