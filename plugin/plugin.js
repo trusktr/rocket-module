@@ -151,6 +151,9 @@ class RocketModuleCompiler {
                     // Meteor already compiles CSS files found elsewhere.
                     { test: /\.css$/, loader: 'style!css' },
 
+                    //images
+                    { test: /\.(png|jpg|jpeg)$/, loader: 'url' },
+
                     // glsl files.
                     //{ test: /\.glsl$/, loader: 'glslify!raw' }
                     { test: /\.(glsl|frag|vert)$/, loader: 'raw' },
