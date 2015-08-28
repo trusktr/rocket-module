@@ -1,6 +1,8 @@
 rocket:module
 =============
 
+[![Join the chat at https://gitter.im/trusktr/rocket-module](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/trusktr/rocket-module?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ES6 Modules for Meteor. (And CJS/AMD too!)
 
 **NOTE: This isn't ready yet! It'll be ready at v1.0.0. It's in a usable state
