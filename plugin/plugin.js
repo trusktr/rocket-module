@@ -142,6 +142,9 @@ class RocketModuleCompiler {
         let r = regexr
         let { platform } = fileInfo(inputFiles[0])
 
+        console.log(`[rocket:module] Compiling for platform "${platform}"...   `)
+        let startTime = Date.now()
+
         _.each(inputFiles, inputFile => {
             //console.log(this.isModifiedFile(inputFile), fileInfo(inputFile).isopackPackageFileName)
         })
@@ -277,7 +280,17 @@ class RocketModuleCompiler {
          */
         {
         let mainPackageDotJsonData = {
-            dependencies: {}
+            name: "rocket_module__root",
+            description: "root package",
+            version: "0.0.0",
+            license: "WTFPL",
+            repository: {
+                type: "git",
+                url: "git://github.com/meteor-rocket/module.git"
+            },
+            dependencies: {
+                "webpack": "^1.10.5"
+            }
         }
         let previousPackage = null
         _.each(inputFiles, inputFile => {
@@ -457,8 +470,6 @@ class RocketModuleCompiler {
             // TODO: Find out why Webpack doesn't code split shared modules in this setup.
             // Filed an issue on Webpack at https://github.com/webpack/webpack/issues/1296
             let compileErrors
-            console.log('[rocket:module] Compiling for platform '+platform+'...   ')
-            let startTime = Date.now()
             let webpackCompiler = webpack(webpackConfig[platform])
             Meteor.wrapAsync(callback =>
                 webpackCompiler.run((error, stats) => {
@@ -479,9 +490,6 @@ class RocketModuleCompiler {
                     callback(error, stats)
                 })
             )()
-            let endTime = Date.now()
-            let elapsed = endTime - startTime
-            console.log('[rocket:module] Done. Elapsed time: '+elapsed+'ms        ')
 
             process.chdir(oldCwd)
 
@@ -498,8 +506,6 @@ class RocketModuleCompiler {
          * Pass all the compiled files back into their corresponding InputFiles
          * via the addJavaScript method.
          */
-        console.log(' --- Giving sources back to Meteor...')
-        let start = Date.now()
         _.each(inputFiles, inputFile => {
             let { fileName, package, isopackPackageFileName, relativePackageFileName, fileSource }
                 = fileInfo(inputFile)
@@ -569,8 +575,6 @@ class RocketModuleCompiler {
                     }
                 }
             }
-            let end = Date.now()
-            console.log('Done.', end - start)
 
             function addSource() {
                 // finally add the sources back!
@@ -584,6 +588,10 @@ class RocketModuleCompiler {
         })
 
         this.updateSourceHashes(inputFiles)
+
+        let endTime = Date.now()
+        let elapsed = endTime - startTime
+        console.log(`[rocket:module] Done. Elapsed time: ${elapsed}ms        `)
     }
 }
 
