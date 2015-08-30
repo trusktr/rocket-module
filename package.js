@@ -34,7 +34,7 @@ Package.registerBuildPlugin({
 })
 
 Package.onUse(function(api) {
-    //api.versionsFrom('1.1.0.2');
+    api.versionsFrom('1.2-rc.7');
 
     // needed if using Plugin.registerCompiler (for now?)
     api.use('isobuild:compiler-plugin@1.0.0');
