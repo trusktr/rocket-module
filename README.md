@@ -49,7 +49,7 @@ dependencies you'd like from NPM. In most cases, you should leave the carrot
 (`^`) in front of the version number to ensure that the most compatible
 versions of your dependencies can be found. If you need more control of the
 versions in your package for whatever reason, you can (but try to avoid)
-[plucking the carrot](http://semver.org).
+[plucking the carrot](https://docs.npmjs.com/misc/semver#caret-ranges-1-2-3-0-2-5-0-0-4).
 
 If you're making a package, be sure to add your `npm.json` file via
 `api.addFiles()`.
