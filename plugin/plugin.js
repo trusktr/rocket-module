@@ -395,7 +395,19 @@ class RocketModuleCompiler {
             let savedLogFunction = console.log
             console.log(`\n --- Installing a local copy of npm@^3.2.0...             `)
             Meteor.wrapAsync(callback =>
-                npm.load({ prefix: npmContainerDirectory, loglevel: 'info' }, function() {
+
+                let loglevel = 'info'
+
+                // Let us supply the npm loglevel via command like, f.e. meteor
+                // --npm-loglevel verbose, for debugging.
+                // XXX: Apparently we can't add CLI options to the meteor command.
+                // TODO: Use an environment variable here.
+                //let loglevelOptionIndex = process.argv.indexOf('--npm-loglevel')
+                //if (loglevelOptionIndex > -1) {
+                    //loglevel = process.argv[loglevelOptionIndex + 1]
+                //}
+
+                npm.load({ prefix: npmContainerDirectory, loglevel: loglevel }, function() {
                     npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
                 })
             )()
