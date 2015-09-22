@@ -394,7 +394,7 @@ class RocketModuleCompiler {
 
             let savedLogFunction = console.log
             console.log(`\n --- Installing a local copy of npm@^3.2.0...             `)
-            Meteor.wrapAsync(callback =>
+            Meteor.wrapAsync(callback => {
 
                 let loglevel = 'info'
 
@@ -410,7 +410,7 @@ class RocketModuleCompiler {
                 npm.load({ prefix: npmContainerDirectory, loglevel: loglevel }, function() {
                     npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
                 })
-            )()
+            })()
             console.log(`\n --- Done installing npm@^3.2.0.                          `)
         }
 
