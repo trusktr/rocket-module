@@ -142,7 +142,7 @@ class RocketModuleCompiler {
         let r = regexr
         let { platform } = fileInfo(inputFiles[0])
 
-        console.log(`[rocket:module] Compiling for platform "${platform}"...   `)
+        console.log(`\n[rocket:module] Compiling for platform "${platform}"...   `)
         let startTime = Date.now()
 
         _.each(inputFiles, inputFile => {
