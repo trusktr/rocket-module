@@ -381,7 +381,11 @@ class RocketModuleCompiler {
 
         /*
          * Use npm to install npm locally for us to use via CLI. This is easier
-         * than having to look for npm in the rocket:module isopack.
+         * than having to look for npm in rocket:module's isopack because we
+         * can't guarantee that the structure of that won't change. The
+         * programmatic NPM API doesn't work as nicely as the CLI, and we can't
+         * depend on the user having the CLI, so we'll use the programmatic API
+         * to locally install the version of NPM that we want for our needs.
          */
         let npmContainerDirectory = path.resolve(rocketModuleCache, 'npmContainer')
         let npmContainerNodeModules = path.resolve(npmContainerDirectory, 'node_modules')
@@ -389,13 +393,13 @@ class RocketModuleCompiler {
             mkdirp(npmContainerNodeModules)
 
             let savedLogFunction = console.log
-            console.log = function() {} // silence npm output.
+            console.log(`\n --- Installing a local copy of npm@^3.2.0...             `)
             Meteor.wrapAsync(callback =>
-                npm.load({ prefix: npmContainerDirectory, loglevel: 'silent' }, function() {
+                npm.load({ prefix: npmContainerDirectory, loglevel: 'info' }, function() {
                     npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
                 })
             )()
-            console.log = savedLogFunction
+            console.log(`\n --- Done installing npm@^3.2.0.                          `)
         }
 
         /**
@@ -416,7 +420,7 @@ class RocketModuleCompiler {
          * @param {Array.string} args An array of arguments to pass to npm.
          * They get concatenated together with spaces in between.
          *
-         * XXX: Use child_process.spawnSync?
+         * XXX: Use child_process.spawnSync instead of shell.exec?
          */
         function npmCommand(...args) {
             args = _.reduce(args, function(result, arg) {
