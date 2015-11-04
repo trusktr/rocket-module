@@ -1,12 +1,8 @@
 Package.describe({
     name: 'rocket:module',
     version: '0.8.2',
-    // Brief, one-line summary of the package.
     summary: 'ES6/CJS/AMD modules, JSX/CSS/GLSL file loading, cross-package NPM dependencies...',
-    // URL to the Git repository containing the source code for this package.
     git: 'https://github.com/meteor-rocket/module.git',
-    // By default, Meteor will default to using README.md for documentation.
-    // To avoid submitting documentation, set this field to null.
     documentation: 'README.md'
 })
 
@@ -16,7 +12,7 @@ Package.registerBuildPlugin({
         'meteor',
         'rocket:webpack@1.10.5',
         'rocket:build-tools@2.1.4',
-        'ecmascript@0.1.3-plugins.0'
+        'ecmascript@0.1.6'
     ],
 
     //sources: ['hello'],
@@ -34,9 +30,9 @@ Package.registerBuildPlugin({
 })
 
 Package.onUse(function(api) {
-    api.versionsFrom('1.2-rc.7');
+    api.versionsFrom('1.2');
 
-    // needed if using Plugin.registerCompiler (for now?)
+    // needed if using Plugin.registerCompiler.
     api.use('isobuild:compiler-plugin@1.0.0');
 
     api.addFiles('npm.json')
