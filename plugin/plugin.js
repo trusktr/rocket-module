@@ -731,19 +731,12 @@ function fileBelongsToPlatform(platform, fullFileName) {
     Plugin.registerCompiler({
         // TODO: Add css, typescript, coffeescript, etc.
         extensions: [
-            'js', 'jsx',
-
-            'entry.js', 'entry.jsx',
-            'client.entry.js', 'client.entry.jsx',
-            'server.entry.js', 'server.entry.jsx'
+            'js',
+            //'jsx',
         ],
         filenames: [
             'npm.json',
             'rocket-module.json',
-
-            'entry.js', 'entry.jsx',
-            'client.entry.js', 'client.entry.jsx',
-            'server.entry.js', 'server.entry.jsx'
         ]
     }, x=> new RocketModuleCompiler)
 }
