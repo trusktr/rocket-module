@@ -194,7 +194,53 @@ class RocketModuleCompiler {
                         //  "glslify": "^2.0.0"
 
                         // Support for ES6 modules and the latest ES syntax.
-                        { test: /\.jsx?$/,  loader: 'babel', exclude: /node_modules/ },
+                        {
+                            test: /\.jsx?$/,
+                            loader: 'babel',
+                            exclude: /node_modules/,
+                            query: {
+                                cacheDirectory: true,
+                                presets: [
+                                    //'es2015', // tc39 stage 4, currently es2015?
+                                    'react'
+                                ],
+                                plugins: [
+
+                                    // es2015 preset, manual version:
+                                    'transform-es2015-arrow-functions',
+                                    'transform-es2015-block-scoped-functions',
+                                    'transform-es2015-block-scoping',
+                                    'transform-es2015-classes',
+                                    'transform-es2015-computed-properties',
+                                    'transform-es2015-constants',
+                                    'transform-es2015-destructuring',
+                                    'transform-es2015-for-of',
+                                    'transform-es2015-function-name',
+                                    'transform-es2015-literals',
+                                    'transform-es2015-modules-commonjs',
+                                    'transform-es2015-object-super',
+                                    'transform-es2015-parameters',
+                                    'transform-es2015-shorthand-properties',
+                                    'transform-es2015-spread',
+                                    'transform-es2015-sticky-regex',
+                                    'transform-es2015-template-literals',
+                                    'transform-es2015-typeof-symbol',
+                                    'transform-es2015-unicode-regex',
+                                    //'transform-regenerator', // not needed in Chrome or Firefox. Soon won't be needed in Edge.
+
+                                    //'syntax-async-functions', // async/await syntax (automatically loaded by the next transform)
+                                    'transform-async-to-generator',
+
+                                    'transform-es5-property-mutators',
+
+                                    // module support
+                                    'transform-es2015-modules-amd',
+                                    'transform-es2015-modules-commonjs',
+                                    //'transform-es2015-modules-systemjs', // needs System existing in global scope first (f.e. via SystemJS)
+                                    'transform-es2015-modules-umd',
+                                ],
+                            },
+                        },
 
                         // TODO: We still have to tell Meteor rocket:module will
                         // handle other file types besides JavaScript files, but
@@ -330,8 +376,11 @@ class RocketModuleCompiler {
                 mainPackageDotJsonData.dependencies[npmPackageName] = `file:./packages/${npmPackageName}`
             }
 
-            // All .js files except entry.js files can be required from
-            // entry.js entrypoint files.
+            // Write all modified js files to the cache. All files will be
+            // written on first run.
+            //
+            // All `.js` files except entry.js files can be required from an
+            // entry.js entrypoint file.
             if (fileName.match(/\.js$/g)
                 && !(fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module')
                 && !isEntryPoint(fileName)) {
@@ -546,6 +595,16 @@ class RocketModuleCompiler {
                     builtFileSource = 'RocketModule = {};\n'+builtFileSource
                     builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
+
+                // TODO: Add the Facebook regenerator runtime so that generator/yield
+                // and async/await functions work.
+                //builtFileSource = getBabelPolyfillSource()+"\n"+builtFileSource
+                //function getBabelPolyfillSource() {
+                    //return fs.readFileSync(path.resolve(platformBatchDir, 'node_modules', 'babel-polyfill/dist/polyfill.js')).toString()
+                //}
+                //console.log('########################################################################\n', builtFileSource)
+                //console.log('########################################################################\n')
+
                 addSource()
             }
             else if (isEntryPoint(fileName)) {
@@ -572,6 +631,7 @@ class RocketModuleCompiler {
                         ${builtFileSource}
                     `)
                 }
+
                 addSource()
             }
             else {
@@ -641,9 +701,9 @@ function fileInfo(inputFile) {
     let package = unibuild.pkg
     let fileName = inputResource.path
 
-    // the isopackName of the current file's package, or rocket_module__app
+    // the isopackName of the current file's package, or rocket_module___app
     // if the file belongs to the app.
-    // Note: I was using a name like __app__ instead of rocket_module__app
+    // Note: I was using a name like __app__ instead of rocket_module___app
     // but a name with leading underscores causes npm to crash
     // (https://github.com/npm/npm/issues/9071).
     let isopackName = package.name ? toIsopackName(package.name) : '_app'

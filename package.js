@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.8.2',
+    version: '0.9.0',
     summary: 'ES6/CJS/AMD modules, JSX/CSS/GLSL file loading, cross-package NPM dependencies...',
     git: 'https://github.com/meteor-rocket/module.git',
     documentation: 'README.md'
@@ -10,7 +10,7 @@ Package.registerBuildPlugin({
     name: 'rocket:module',
     use: [
         'meteor',
-        'rocket:webpack@1.10.5',
+        'rocket:webpack@1.12.3',
         'rocket:build-tools@2.1.4',
         'ecmascript@0.1.6'
     ],
