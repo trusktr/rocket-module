@@ -271,7 +271,6 @@ class RocketModuleCompiler {
          * apply it to the webpack config. Ignore rocket-module.json files
          * found in packages.
          */
-        {
         let rocketModuleConfigFile = _.filter(inputFiles, function(file) {
             let { fileName, isopackName } = fileInfo(file)
             return isopackName.match(/^_app$/g) && fileName.match(/^rocket-module\.json$/g)
@@ -280,11 +279,11 @@ class RocketModuleCompiler {
             let { fileName, isopackName } = fileInfo(file)
             return !(isopackName.match(/^_app$/g) && fileName.match(/^rocket-module\.json$/g))
         })
+        let rocketModuleConfig = {}
         if (rocketModuleConfigFile) {
             let { fileSource } = fileInfo(rocketModuleConfigFile)
-            let rocketModuleConfig = JSON.parse(fileSource)
+            rocketModuleConfig = JSON.parse(fileSource)
             webpackConfig[platform].resolve.alias = rocketModuleConfig.aliases
-        }
         }
 
 
@@ -596,8 +595,10 @@ class RocketModuleCompiler {
                     builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
 
-                // TODO: Add the Facebook regenerator runtime so that generator/yield
-                // and async/await functions work.
+                // TODO: Add the Facebook regenerator runtime so that
+                // generator/yield and async/await functions work in places
+                // where generators aren't natively supported yet, as we're
+                // compiling async/await into generator/yield form.
                 //builtFileSource = getBabelPolyfillSource()+"\n"+builtFileSource
                 //function getBabelPolyfillSource() {
                     //return fs.readFileSync(path.resolve(platformBatchDir, 'node_modules', 'babel-polyfill/dist/polyfill.js')).toString()
@@ -643,7 +644,7 @@ class RocketModuleCompiler {
                     // if the file ends with {client,server}.js and belongs to
                     // the current platform, or the file is not a
                     // {client,server}.js file.
-                    if (fileBelongsToPlatform(platform, fileName) && !fileIsModule(fileName)) {
+                    if (fileBelongsToPlatform(platform, fileName) && !fileIsModule(fileName, rocketModuleConfig)) {
 
                         // give it's original source back to Meteor for Meteor to handle.
                         builtFileSource = fileSource
@@ -754,10 +755,57 @@ function isClientServerFile(fullFileName) {
     return basename.match(/(^|\.)(client|server)(\.entry)?\.jsx?$/g)
 }
 
-function fileIsModule(fullFileName) {
+/**
+ * Is the file a module file? Module files are files that are specifically not
+ * going to be handled by Meteor's default file handling mechanism; they are
+ * files intended to be imported somewhere in the import chain of an entrypoint
+ * file (entry.js files).
+ *
+ * @param {string} fullFileName A file name relative to the package where the
+ * file is found.
+ * @param {object} rocketConfig The configuration from rocket-module.json.
+ */
+function fileIsModule(fullFileName, rocketConfig) {
     let dirname = path.dirname(fullFileName)
-    let enforceModules = false // <-- TODO: let user configure this project-wide setting.
-    return enforceModules || !!_.detect(dirname.split(path.sep), pathPart => pathPart.match(/modules/g))
+
+    // TODO: let user configure this project-wide setting. Setting it to true
+    // would mean that all files are treated as modules, and never handled by
+    // Meteor's normal file handling. All files would never execute unless they
+    // are imported into some file anywhere in the import chain of an
+    // entrypoint file.
+    let enforceModules = false
+
+    let isIgnored = fileIsIgnored(fullFileName, rocketConfig)
+
+    return enforceModules || (!isIgnored &&  toBoolean(_.detect(dirname.split(path.sep), pathPart => pathPart.match(/modules/g))))
+}
+
+/**
+ * Convert the given value to a boolean.
+ */
+function toBoolean(value) {
+    return !!value
+}
+
+/**
+ * Determines if the file should be ignored from rocket:module handling.  If
+ * the file is ignored in rocket-module.json's ignore field, then file isn't a
+ * module.  For now, just checks if the file contains any of the rules listed
+ * in rocket-module.json in it's filename.
+ *
+ * TODO: Use globs (f.e. path/to/* or path/*foo/file), similar to .gitignore rules.
+ */
+function fileIsIgnored(fullFileName, rocketConfig) {
+    let isIgnored = false
+
+    for (let rule of rocketConfig.ignore) {
+        if (fullFileName.indexOf(rule) === 0) { // if the rule matches at the beginning of the file.
+            isIgnored = true
+            break
+        }
+    }
+
+    return isIgnored
 }
 
 function fileBelongsToPlatform(platform, fullFileName) {
