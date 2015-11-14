@@ -212,7 +212,6 @@ class RocketModuleCompiler {
                                     'transform-es2015-block-scoping',
                                     'transform-es2015-classes',
                                     'transform-es2015-computed-properties',
-                                    'transform-es2015-constants',
                                     'transform-es2015-destructuring',
                                     'transform-es2015-for-of',
                                     'transform-es2015-function-name',
