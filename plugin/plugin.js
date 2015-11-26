@@ -225,16 +225,14 @@ class RocketModuleCompiler {
                                     'transform-es2015-template-literals',
                                     'transform-es2015-typeof-symbol',
                                     'transform-es2015-unicode-regex',
-                                    //'transform-regenerator', // not needed in Chrome or Firefox. Soon won't be needed in Edge.
+                                    'transform-regenerator', // not needed in Chrome or Firefox. Soon won't be needed in Edge or Safari.
 
-                                    //'syntax-async-functions', // async/await syntax (automatically loaded by the next transform)
                                     'transform-async-to-generator',
 
                                     'transform-es5-property-mutators',
 
                                     // module support
                                     'transform-es2015-modules-amd',
-                                    'transform-es2015-modules-commonjs',
                                     //'transform-es2015-modules-systemjs', // needs System existing in global scope first (f.e. via SystemJS)
                                     'transform-es2015-modules-umd',
                                 ],
@@ -593,17 +591,6 @@ class RocketModuleCompiler {
                     builtFileSource = 'RocketModule = {};\n'+builtFileSource
                     builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
-
-                // TODO: Add the Facebook regenerator runtime so that
-                // generator/yield and async/await functions work in places
-                // where generators aren't natively supported yet, as we're
-                // compiling async/await into generator/yield form.
-                //builtFileSource = getBabelPolyfillSource()+"\n"+builtFileSource
-                //function getBabelPolyfillSource() {
-                    //return fs.readFileSync(path.resolve(platformBatchDir, 'node_modules', 'babel-polyfill/dist/polyfill.js')).toString()
-                //}
-                //console.log('########################################################################\n', builtFileSource)
-                //console.log('########################################################################\n')
 
                 addSource()
             }

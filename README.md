@@ -145,6 +145,20 @@ example. See the [example
 package](https://github.com/meteor-rocket/module-example-package) to learn how
 to use `rocket:module` in a Meteor package.
 
+Using Generator or Async functions
+----------------------------------
+
+If you plan to use async/await or generator functions, you should import the regenerator runtime in your entry point like this:
+
+```js
+import regeneratorRuntime from 'regenerator/runtime'
+window.regeneratorRuntime = regeneratorRuntime
+```
+
+Otherwise you'll get an error saying that regeneratorRuntime is not defined
+when you run your app. The error will happen only if you're using generators or
+async/await in your code.
+
 Module load order
 -----------------
 

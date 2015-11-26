@@ -1,8 +1,8 @@
 {
   "webpack": "^1.12.3",
+  "regenerator": "^0.8.0",
 
   "babel-loader": "^6.0.0",
-  "babel-polyfill": "^6.0.0",
   "babel-core": "^6.0.0",
 
   "babel-plugin-transform-es2015-arrow-functions": "^6.0.0",
@@ -23,6 +23,7 @@
   "babel-plugin-transform-es2015-template-literals": "^6.0.0",
   "babel-plugin-transform-es2015-typeof-symbol": "^6.0.0",
   "babel-plugin-transform-es2015-unicode-regex": "^6.0.0",
+  "babel-plugin-transform-regenerator": "^6.0.0",
 
   "babel-preset-react": "^6.0.0",
 
