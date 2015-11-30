@@ -145,20 +145,6 @@ example. See the [example
 package](https://github.com/meteor-rocket/module-example-package) to learn how
 to use `rocket:module` in a Meteor package.
 
-Using Generator or Async functions
-----------------------------------
-
-If you plan to use async/await or generator functions, you should import the regenerator runtime in your entry point like this:
-
-```js
-import regeneratorRuntime from 'regenerator/runtime'
-window.regeneratorRuntime = regeneratorRuntime
-```
-
-Otherwise you'll get an error saying that regeneratorRuntime is not defined
-when you run your app. The error will happen only if you're using generators or
-async/await in your code.
-
 Module load order
 -----------------
 
@@ -177,13 +163,58 @@ Meteor's load order mechanism, not by `rocket:module`.
 Caveats
 -------
 
+### Modifying `npm.json`
+
 If you make a change to `npm.json`, the server will reload as expected, but
 will fail to update your NPM dependencies. This will be fixed in
-`rocket:module` v1.0.0.
+`rocket:module` v1.0.0. For now, there are two ways you can work around this (choose one):
+
+1. Relative to your app, run `npm install` inside of both
+   `./meteor/local/rocket-module/platform-builds/web.browser` and
+   `./meteor/local/rocket-module/platform-builds/os`.
+2. Stop your Meteor server, remove `.meteor/local/rocket-module` relative to
+   your app, restart Meteor. This option is easier to do, but takes longer
+   because `rocket:module` will have to re-install all NPM dependencies again.
+
+### Build lag
 
 You may experience a build delay (sometimes around a minute long) due to a
 possible bug in the release candidate of Meteor. I hope we can get to the
 bottom of it soon. See https://github.com/meteor/meteor/issues/5067.
+
+### Using generator functions or async/await
+
+If you plan to use
+[async](http://pouchdb.com/2015/03/05/taming-the-async-beast-with-es7.html)/[await](http://code.tutsplus.com/tutorials/a-primer-on-es7-async-functions--cms-22367)
+or [generator
+functions](http://jlongster.com/Taming-the-Asynchronous-Beast-with-CSP-in-JavaScript),
+you should import the regenerator runtime in your entrypoint like this if you're using ES6 Modules:
+
+```js
+import regeneratorRuntime from 'regenerator/runtime'
+window.regeneratorRuntime = regeneratorRuntime
+```
+
+Like this if you're using CommonJS modules:
+
+```js
+let regeneratorRuntime = require('regenerator/runtime')
+window.regeneratorRuntime = regeneratorRuntime
+```
+
+Or like this if using AMD modules (untested, and there's other ways to do it in
+AMD as well):
+
+```js
+define(function(require) {
+    let regeneratorRuntime = require('regenerator/runtime')
+    window.regeneratorRuntime = regeneratorRuntime
+})
+```
+
+Otherwise you'll get an error saying that `regeneratorRuntime` is not defined
+when you run your app. The error will happen only if you're using generators or
+async/await in your code, otherwise the app will work just fine.
 
 Future improvements
 -------------------
@@ -216,27 +247,28 @@ apply starting from v0.2.0.
         `resolve.alias` config option.
 - [x] Only read npm.json at the root level of a package or app, and same
       with rocket-module.js of an app.
-- [ ] Use Webpack's caching feature so that only modified files are rebuilt.
+- [x] Use Webpack's caching feature so that only modified files are rebuilt.
       Make sure to write the replacement of `window` by `RocketModule` to the built
       files if Webpack's cache reads the built files.
-  - [ ] Make sure that files that are no longer in the project are also not
-        present in rocket:module build cache.
-  - [ ] Does Meteor tell you which files have changed? If so, update only those
-        files on the disk, leaving other files unchanged.
+- [ ] Make sure that files that are no longer in the project are also not
+      present in rocket:module build cache.
+- [ ] Does Meteor tell you which files have changed? If so, update only those
+      files on the disk, leaving other files unchanged.
 - [ ] Add sub-node_modules folders to the resolve/resolveLoader root option if
       there are any (it happens with dependency forks, but most of the time the
-      first level node_modules folder will be flat).
+      first level node_modules folder will be flat because we're using NPM v3).
 - [ ] Add useful Webpack loaders: babel, coffeescript, typescript, jsx, glslify,
       css, less, sass, and stylus.
   - [x] babel
   - [ ] coffeescript
   - [ ] typescript
   - [x] jsx (via babel)
-  - [ ] glslify
-  - [ ] css
+  - [x] glslify
+  - [x] css
   - [ ] less
   - [ ] sass
   - [ ] stylus
+  - [x] PNG/JPEG
 - [ ] Get code splitting working (webpack/webpack issue #1296). Currently each
       entry point is having duplicate code, which is the same as Meteor's
       dependency handling.
@@ -244,24 +276,25 @@ apply starting from v0.2.0.
 - [ ] Use `npm outdated` to detect if we need to run `npm update`. We'll need
       to run the update command when dependencies listed in npm.json files have
       changed in order to update the local packages.
-- [ ] Make a `enforceModules` option that, when true, doesn't hand files unused
+- [ ] Make a `enforceModules` option that, when true, doesn't handle files unused
       by Webpack back to Meteor. This makes it so that files are only in your
-      project if they are required or imported into another file, otherwise their
-      code is completely ignored.
-- [x] Don't hand back files in a `modules` folder. This can be used similarly
-      to the `enforceModules` option to tell rocket:module that these files are
-      meant only to be required or imported into other files, and if they are not,
-      they won't be handed back to Meteor.
+      project if they are explicitly required or imported into another file,
+      otherwise their code is completely ignored.
+- [x] Don't hand files in a `modules` folder back to Meteor. This can be used
+      similarly to the `enforceModules` option to tell rocket:module that these
+      files are meant only to be required or imported into other files, and if they
+      are not, they won't be handed back to Meteor.
 - [ ] Test in Windows.
 - [ ] Report file-specific Webpack errors using corresponding InputFile.error() calls.
 - [ ] Finish commented TODOs that are left in rocket:module.
-- [ ] Update README with usage and configuration documentation.
-  - [ ] Describe how to use npm dependencies.
-  - [ ] Describe client/server file naming.
+- [x] Update README with usage and configuration documentation.
+  - [x] Describe how to use npm dependencies.
+  - [x] Describe client/server file naming.
 - [ ] Celebrate! Wooooo!
 
 Post v1.0.0
 -----------
 
-- [ ] Install Webpack locally instead of using rocket:module, which will prevent architecture-specific builds of rocket:module.
+- [ ] Install Webpack locally instead of using `rocket:webpack`, which will
+      prevent architecture-specific builds of `rocket:module`.
 - [ ] Add support for browserify transforms.
