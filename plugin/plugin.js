@@ -573,10 +573,20 @@ class RocketModuleCompiler {
 
             let batchDirBuiltFilePath = path.resolve(platformBatchDir, 'built', isopackPackageFileName)
 
-            let builtFileSource
+            let builtFileSource = ''
 
             if (fileName.match(/shared-modules\.js$/g) && package.name === 'rocket:module') {
-                builtFileSource = fs.readFileSync(
+                // Add the Facebook regenerator runtime so that generator/yield
+                // and async/await functions work in places where generators
+                // aren't natively supported yet, as we're compiling
+                // async/await into generator/yield form and finally in ES5
+                // with Facebook's Regenerator.
+                builtFileSource = "\n/*@#@#@#*/\n"+getBabelPolyfillSource()+"\n/*#%#%#%*/\n"
+                function getBabelPolyfillSource() {
+                    return fs.readFileSync(path.resolve(platformBatchDir, 'node_modules', 'babel-polyfill/dist/polyfill.js')).toString()
+                }
+
+                let sharedModuleSource = fs.readFileSync(
                     path.resolve(platformBatchDir, 'built', 'shared-modules.js')
                 ).toString()
 
@@ -588,9 +598,11 @@ class RocketModuleCompiler {
                 // rocket:module, so they can all access the RocketModule
                 // symbol similarly to a global like window.
                 if (platform.match(/^os/g)) {
-                    builtFileSource = 'RocketModule = {};\n'+builtFileSource
-                    builtFileSource = builtFileSource.replace(/\bwindow\b/g, 'RocketModule')
+                    sharedModuleSource = 'RocketModule = {};\n'+sharedModuleSource
+                    sharedModuleSource = sharedModuleSource.replace(/\bwindow\b/g, 'RocketModule')
                 }
+
+                builtFileSource += sharedModuleSource
 
                 addSource()
             }
