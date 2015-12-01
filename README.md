@@ -182,40 +182,6 @@ You may experience a build delay (sometimes around a minute long) due to a
 possible bug in the release candidate of Meteor. I hope we can get to the
 bottom of it soon. See https://github.com/meteor/meteor/issues/5067.
 
-### Using generator functions or async/await
-
-If you plan to use
-[async](http://pouchdb.com/2015/03/05/taming-the-async-beast-with-es7.html)/[await](http://code.tutsplus.com/tutorials/a-primer-on-es7-async-functions--cms-22367)
-or [generator
-functions](http://jlongster.com/Taming-the-Asynchronous-Beast-with-CSP-in-JavaScript),
-you should import the regenerator runtime in your entrypoint like this if you're using ES6 Modules:
-
-```js
-import regeneratorRuntime from 'regenerator/runtime'
-window.regeneratorRuntime = regeneratorRuntime
-```
-
-Like this if you're using CommonJS modules:
-
-```js
-let regeneratorRuntime = require('regenerator/runtime')
-window.regeneratorRuntime = regeneratorRuntime
-```
-
-Or like this if using AMD modules (untested, and there's other ways to do it in
-AMD as well):
-
-```js
-define(function(require) {
-    let regeneratorRuntime = require('regenerator/runtime')
-    window.regeneratorRuntime = regeneratorRuntime
-})
-```
-
-Otherwise you'll get an error saying that `regeneratorRuntime` is not defined
-when you run your app. The error will happen only if you're using generators or
-async/await in your code, otherwise the app will work just fine.
-
 Future improvements
 -------------------
 
