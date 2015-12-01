@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.15.3',
+    version: '0.15.4',
     summary: 'ES6/CJS/AMD modules and cross-package NPM dependencies.',
     git: 'https://github.com/meteor-rocket/module.git',
     documentation: 'README.md'
