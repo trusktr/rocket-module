@@ -437,8 +437,7 @@ class RocketModuleCompiler {
         if (!fs.existsSync(npmContainerNodeModules)) {
             mkdirp(npmContainerNodeModules)
 
-            let savedLogFunction = console.log
-            console.log(`\n --- Installing a local copy of npm@^3.2.0...             `)
+            console.log(`\n[rocket:module] Installing a local copy of npm@^3.2.0...  `)
             Meteor.wrapAsync(callback => {
 
                 let loglevel = 'info'
@@ -453,10 +452,13 @@ class RocketModuleCompiler {
                 //}
 
                 npm.load({ prefix: npmContainerDirectory, loglevel: loglevel }, function() {
-                    npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], callback)
+                    npm.commands.install(npmContainerDirectory, ['npm@^3.2.0'], function() {
+                        console.log('[rocket:module] The preceding WARN messages are harmless.')
+                        callback()
+                    })
                 })
             })()
-            console.log(`\n --- Done installing npm@^3.2.0.                          `)
+            console.log(`\n[rocket:module] Done installing npm@^3.2.0.               `)
         }
 
         /**
@@ -604,11 +606,21 @@ class RocketModuleCompiler {
 
                 builtFileSource += sharedModuleSource
 
-                // write the resulting share-modules.js file to the built
+                // write the resulting share-modules.js file to the OS's tmpdir
                 // folder for reference/debugging.
-                fs.writeFile(path.resolve(platformBatchDir, 'built', 'shared-modules.js'), builtFileSource, err => {
-                    if (err) throw new Error(err)
-                    console.log(`[rocket:module] Wrote shared-modules.js to ${ path.resolve(platformBatchDir, 'built', 'shared-modules.js') }.`)
+                let getAppId = function getAppId(callback) {
+                    fs.readFile(path.resolve(getAppPath(), '.meteor', '.id'), 'utf8', (err, data) => {
+                        if (err) throw new Error(err)
+                        let appId = data.trim().split('\n').slice(-1)[0] // the last line of the file.
+                        callback(appId)
+                    })
+                }
+                getAppId(appId => {
+                    let destination = path.resolve(os.tmpdir(), `${ appId }-shared-modules.js`)
+                    fs.writeFile(destination, builtFileSource, err => {
+                        if (err) throw new Error(err)
+                        console.log(`[rocket:module] Wrote shared-modules.js to ${ destination }.`)
+                    })
                 })
 
                 addSource()
@@ -673,7 +685,7 @@ class RocketModuleCompiler {
 
         let endTime = Date.now()
         let elapsed = endTime - startTime
-        console.log(`[rocket:module] Done. Elapsed time: ${elapsed}ms        `)
+        console.log(`[rocket:module] Done compiling for platform "${platform}". Elapsed time: ${elapsed}ms`)
     }
 }
 
