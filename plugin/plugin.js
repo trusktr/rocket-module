@@ -604,6 +604,13 @@ class RocketModuleCompiler {
 
                 builtFileSource += sharedModuleSource
 
+                // write the resulting share-modules.js file to the built
+                // folder for reference/debugging.
+                fs.writeFile(path.resolve(platformBatchDir, 'built', 'shared-modules.js'), builtFileSource, err => {
+                    if (err) throw new Error(err)
+                    console.log('wrote file to ', batchDirBuiltFilePath)
+                })
+
                 addSource()
             }
             else if (isEntryPoint(fileName)) {
