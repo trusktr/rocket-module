@@ -3,6 +3,7 @@
   "regenerator": "^0.8.0",
 
   "babel-loader": "^6.0.0",
+  "babel-polyfill": "^6.0.0",
   "babel-core": "^6.0.0",
 
   "babel-plugin-transform-es2015-arrow-functions": "^6.0.0",
