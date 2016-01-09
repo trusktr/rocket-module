@@ -2,9 +2,11 @@
   "webpack": "^1.12.3",
   "regenerator": "^0.8.0",
 
+  "babel-core": "^6.0.0",
   "babel-loader": "^6.0.0",
   "babel-polyfill": "^6.0.0",
-  "babel-core": "^6.0.0",
+
+  "babel-preset-react": "^6.0.0",
 
   "babel-plugin-transform-es2015-arrow-functions": "^6.0.0",
   "babel-plugin-transform-es2015-block-scoped-functions": "^6.0.0",
@@ -26,11 +28,12 @@
   "babel-plugin-transform-es2015-unicode-regex": "^6.0.0",
   "babel-plugin-transform-regenerator": "^6.0.0",
 
-  "babel-preset-react": "^6.0.0",
-
   "babel-plugin-transform-async-to-generator": "^6.0.0",
+
   "babel-plugin-transform-es5-property-mutators": "^6.0.0",
+
   "babel-plugin-transform-es2015-modules-amd": "^6.0.0",
+  "babel-plugin-transform-es2015-modules-systemjs": "^6.0.0",
   "babel-plugin-transform-es2015-modules-umd": "^6.0.0",
 
   "raw-loader": "^0.5.0",

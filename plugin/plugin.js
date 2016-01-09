@@ -232,9 +232,9 @@ class RocketModuleCompiler {
                                     'transform-es5-property-mutators',
 
                                     // module support
-                                    'transform-es2015-modules-amd',
-                                    //'transform-es2015-modules-systemjs', // needs System existing in global scope first (f.e. via SystemJS)
-                                    'transform-es2015-modules-umd',
+                                    //'transform-es2015-modules-amd',
+                                    //'transform-es2015-modules-systemjs',
+                                    //'transform-es2015-modules-umd',
                                 ],
                             },
                         },
@@ -815,11 +815,17 @@ function toBoolean(value) {
 function fileIsIgnored(fullFileName, rocketConfig) {
     let isIgnored = false
 
-    for (let rule of rocketConfig.ignore) {
-        if (fullFileName.indexOf(rule) === 0) { // if the rule matches at the beginning of the file.
-            isIgnored = true
-            break
+    // Check that the option we're going to look at exists in case the user
+    // didn't define it, or the following loop will throw.
+    if (typeof rocketConfig != 'undefined' && typeof rocketConfig.ignore != 'undefined') {
+
+        for (let rule of rocketConfig.ignore) {
+            if (fullFileName.indexOf(rule) === 0) { // if the rule matches at the beginning of the file.
+                isIgnored = true
+                break
+            }
         }
+
     }
 
     return isIgnored
