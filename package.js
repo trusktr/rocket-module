@@ -1,6 +1,6 @@
 Package.describe({
     name: 'rocket:module',
-    version: '0.15.4',
+    version: '0.16.0',
     summary: 'ES6/CJS/AMD modules and cross-package NPM dependencies.',
     git: 'https://github.com/meteor-rocket/module.git',
     documentation: 'README.md'
@@ -12,7 +12,7 @@ Package.registerBuildPlugin({
         'meteor',
         'rocket:webpack@1.12.3',
         'rocket:build-tools@2.1.4',
-        'ecmascript@0.1.6'
+        'ecmascript@0.3.1-modules.3'
     ],
 
     //sources: ['hello'],
@@ -30,7 +30,7 @@ Package.registerBuildPlugin({
 })
 
 Package.onUse(function(api) {
-    api.versionsFrom('1.2');
+    api.versionsFrom('1.3-modules-beta.3');
 
     // needed if using Plugin.registerCompiler.
     api.use('isobuild:compiler-plugin@1.0.0');
