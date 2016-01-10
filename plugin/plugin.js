@@ -230,11 +230,6 @@ class RocketModuleCompiler {
                                     'transform-async-to-generator',
 
                                     'transform-es5-property-mutators',
-
-                                    // module support
-                                    //'transform-es2015-modules-amd',
-                                    //'transform-es2015-modules-systemjs',
-                                    //'transform-es2015-modules-umd',
                                 ],
                             },
                         },
@@ -260,6 +255,7 @@ class RocketModuleCompiler {
                     ]
                 },
                 cache: webpackCacheObject[platform],
+                devtool: 'source-map',
             }
         }
 
@@ -623,7 +619,7 @@ class RocketModuleCompiler {
                     })
                 })
 
-                addSource()
+                addSource(false)
             }
             else if (isEntryPoint(fileName)) {
                 builtFileSource = fs.readFileSync(batchDirBuiltFilePath).toString()
@@ -650,7 +646,7 @@ class RocketModuleCompiler {
                     `)
                 }
 
-                addSource()
+                addSource(true)
             }
             else {
                 let modules = webpackCompilerStats.modules
@@ -665,18 +661,18 @@ class RocketModuleCompiler {
 
                         // give it's original source back to Meteor for Meteor to handle.
                         builtFileSource = fileSource
-                        addSource()
+                        addSource(false)
                     }
                 }
             }
 
-            function addSource() {
+            function addSource(useSourceMap) {
                 // finally add the sources back!
                 inputFile.addJavaScript({
                     path: fileName,
                     data: builtFileSource || '',
-                    sourcePath: [package.name, fileName].join('/'),
-                    sourceMap: null // TODO TODO TODO
+                    sourcePath: [package.name, fileName].join(path.sep),
+                    sourceMap: useSourceMap ? fs.readFileSync(`${batchDirBuiltFilePath}.map`).toString() : null,
                 })
             }
         })
