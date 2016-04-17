@@ -3,7 +3,7 @@ rocket:module
 
 NPM packages and ES6 Modules (CJS/AMD too!) for Meteor, on the client and server.
 
-**DEPRECATED, in favor of Meteor 1.3 modules. I am no longer working on this. If you really want to use Webpack (which is what this is built on) check out webpack:webpack.**
+**DEPRECATED, in favor of Meteor 1.3 modules. I am no longer working on this. If you really want to use Webpack (which is what this is built on) check out [webpack:webpack](https://atmospherejs.com/webpack/webpack).**
 
 Installation
 ------------
